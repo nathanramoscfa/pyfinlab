@@ -1,0 +1,16 @@
+name: pyfinlab
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - blpapi=3.16.2=py38_blpapicpp3.16.1.1_1
+  - matplotlib-base=3.2.2=py38hbe5506b_1
+  - tqdm=4.61.0=pyhd8ed1ab_0
+  - pip
+  - pip:
+    - git+https://github.com/PaulMest/tia.git#egg=tia
+    - portfoliolab>=0.3.0
+    - yfinance>=0.1.62
+    - numpy>=1.20.1
+    - pandas>=1.1.5

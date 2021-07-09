@@ -1,6 +1,0 @@
-blpapi~=3.16.2
-numpy~=1.21.0
-pandas~=1.3.0
-tia @ git+git://github.com/PaulMest/tia.git@b2dc783cf5c1a71907d4edb96efe0977efb06124
-tqdm~=4.61.2
-yfinance~=0.1.60
