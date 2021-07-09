@@ -17,7 +17,7 @@ PyFinanceLab is a project which brings together various financial applications i
 
 ## Installation Instructions
 
-Open Anaconda Prompt and create a new environment using the environment.yml file. 
+Open Anaconda Prompt, navigate to the pyfinlab root directory, and create a new environment. 
 
 `conda env create -f environment.yml`
 
