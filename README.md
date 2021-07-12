@@ -18,14 +18,13 @@ PyFinanceLab is a project which brings together various financial applications i
 
 ## Installation
 
-PyFinanceLab comes with many dependencies. I highly recommend using Anaconda as it makes package installation very easy. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. These instructions use Anaconda Prompt and pip for environment management and package installation. 
+PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. These instructions use Anaconda Prompt and pip for environment management and package installation. It is recommended you create a new Anaconda environment to keep pyfinlab isolated from your other environments. 
+
+These instructions were written for Python novices. Please open an issue if you have any problems. 
 
 ### Windows Instructions
 
-Create a new folder wherever you normally store your Python projects and call it pyfinlab. I suggest somewhere like:
-```
-C:\Users\User\Python Projects\pyfinlab
-```
+Create a new folder wherever you normally store your Python projects and call it pyfinlab. I suggest somewhere like: `C:\Users\User\Python Projects\pyfinlab`
 
 Open Anaconda Prompt. Navigate to the folder you just created. 
 
@@ -67,7 +66,7 @@ python
 
 #### Install JupyterLab 
 
-Open Anaconda Navigator. In the "Applications on" menu located near the top, click the menu-arrow and select pyfinlab from the dropdown menu. Then find JupyterLab and click the "Install" button. If you already have Jupyter Lab, the button will say "Launch". You should now have everything you need to use pyfinlab and run Jupyter notebooks. Please open an issue if you have any problems. 
+Open Anaconda Navigator. In the "Applications on" menu located near the top, click the menu-arrow and select pyfinlab from the dropdown menu. Then find JupyterLab and click the "Install" button. If you already have Jupyter Lab installed, the button will say "Launch". You should now have everything you need to use pyfinlab and run Jupyter notebooks. 
 
 
 
