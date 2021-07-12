@@ -1,13 +1,11 @@
 
 # PyFinanceLab
 
-PyFinanceLab is a project which brings together various financial applications into one package for research and portfolio management. PyFinanceLab is in pre-alpha development. Please open an issue if you find any bugs. 
+PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. PyFinanceLab is in pre-alpha development. Please open an issue if you find any bugs. 
 
 
 
 ## Features
-
-**PyFinanceLab** is a library of financial applications focusing on portfolio management for Python. 
 
 * **Data Api Wrapper**
     
