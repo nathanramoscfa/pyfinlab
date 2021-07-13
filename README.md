@@ -22,7 +22,7 @@ Please open an issue if you have any problems.
 
 ### Windows Instructions
 
-Open Anaconda Prompt. Navigate to the directory where you store your Python projects. Example below:
+Open Anaconda Prompt. Navigate to the directory where you store your Python projects. 
 
 ```
 cd C:\Users\User\Python Projects
@@ -32,6 +32,12 @@ Clone the pyfinlab Github repository.
 
 ```
 git clone https://github.com/nathanramoscfa/pyfinlab.git
+```
+
+Navigate to the pyfinlab folder. 
+
+```
+cd C:\Users\User\Python Projects\pyfinlab
 ```
 
 Create a new Anaconda environment. 
