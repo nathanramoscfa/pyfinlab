@@ -6,7 +6,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='pyfinlab',  # Required
-    version='0.0.9',  # Required
+    version='0.0.10',  # Required
     description='Financial applications focusing on portfolio management',  # Optional
     long_description=long_description,  # Optional
     long_description_content_type='text/markdown',  # Optional (see note above)
@@ -28,7 +28,7 @@ setup(
     package_dir={'': 'src'},  # Optional
     packages=find_packages(where='src'),  # Required
     python_requires='>=3.7',
-    # install_requires=[],  # Optional
+    install_requires=[],  # Optional
     # extras_require={  # Optional
     #     'dev': ['check-manifest'],
     #     'test': ['coverage'],

@@ -22,44 +22,39 @@ Please open an issue if you have any problems.
 
 ### Windows Instructions
 
-Open Anaconda Prompt. Navigate to the directory where you store your Python projects. 
-
+Create a folder called "pyfinlab" wherever you normally store your Python project files. An example might be: 
 ```
-cd C:\Users\User\Python Projects
+C:\Users\User\Python Projects\pyfinlab
 ```
-
-Clone the pyfinlab Github repository. 
-
-```
-git clone https://github.com/nathanramoscfa/pyfinlab.git
-```
-
-Navigate to the pyfinlab folder. 
-
+Open Anaconda Prompt and navigate to the folder you just created with the `cd` command.  
 ```
 cd C:\Users\User\Python Projects\pyfinlab
 ```
-
+Start python with the following command. 
+```
+python
+```
+Download the environment.yml file by copy and pasting the following code into the python console and press enter twice. 
+```
+import requests
+r = requests.get('https://raw.githubusercontent.com/nathanramoscfa/pyfinlab/main/environment.yml')  
+with open('environment.yml', 'wb') as f:
+    f.write(r.content)
+    exit()
+```
 Create a new Anaconda environment. 
-
 ```
 conda env create -f environment.yml
 ```
-
 Activate the new Anaconda environment. 
-
 ```
 conda activate pyfinlab
 ```
-
 Install the latest package version using pip. 
-
 ```
 pip install pyfinlab
 ```
-
 Check to see if you can import pyfinlab modules. 
-
 ```
 python
 >>> import pyfinlab
