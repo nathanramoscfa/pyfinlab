@@ -18,16 +18,14 @@ PyFinanceLab is a library which brings together various financial applications i
 
 PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. These instructions use Anaconda Prompt and pip for environment management and package installation. It is recommended you create a new Anaconda environment to keep pyfinlab isolated from your other environments. 
 
-These instructions were written for Python novices. Please open an issue if you have any problems. 
+Please open an issue if you have any problems. 
 
 ### Windows Instructions
 
-Create a new folder wherever you normally store your Python projects and call it pyfinlab. I suggest somewhere like: `C:\Users\User\Python Projects\pyfinlab`
-
-Open Anaconda Prompt. Navigate to the folder you just created. 
+Open Anaconda Prompt. Navigate to the directory where you store your Python projects. Example below:
 
 ```
-cd C:\Users\User\Python Projects\pyfinlab
+cd C:\Users\User\Python Projects
 ```
 
 Clone the pyfinlab Github repository. 
