@@ -35,14 +35,9 @@ Install the following pip packages.
 pip install portfoliolab pyportfolioopt git+https://github.com/PaulMest/tia.git#egg=tia yfinance tqdm pyfinlab ffn bt
 ```
 
-Install the following conda package. 
+Install the following conda packages. 
 ```
-conda install -c conda-forge blpapi
-```
-
-Install JupyterLab. 
-```
-conda install -c conda-forge jupyterlab
+conda install -c conda-forge blpapi jupyterlab
 ```
 
 Start the python interpreter and see if you can import the package modules. If the installation was successful, your python interpreter should look something like this. Please open an issue if you encounter any errors. 
