@@ -18,55 +18,39 @@ PyFinanceLab is a library which brings together various financial applications i
 
 PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. These instructions use Anaconda Prompt and pip for environment management and package installation. It is recommended you create a new Anaconda environment to keep pyfinlab isolated from your other environments. 
 
-Please open an issue if you have any problems. 
-
 ### Windows Instructions
 
-Create a folder called "pyfinlab" wherever you normally store your Python project files. An example might be: 
+Open Anaconda Prompt and create a new environment called pyfinlab. 
 ```
-C:\Users\User\Python Projects\pyfinlab
+conda create -n pyfinlab python=3.8
 ```
-Open Anaconda Prompt and navigate to the folder you just created with the `cd` command.  
-```
-cd C:\Users\User\Python Projects\pyfinlab
-```
-Start python with the following command. 
-```
-python
-```
-Download the environment.yml file by copy and pasting the following code into the python console and press enter twice. 
-```
-import requests
-r = requests.get('https://raw.githubusercontent.com/nathanramoscfa/pyfinlab/main/environment.yml')  
-with open('environment.yml', 'wb') as f:
-    f.write(r.content)
-    exit()
-```
-Create a new Anaconda environment. 
-```
-conda env create -f environment.yml
-```
-Activate the new Anaconda environment. 
+
+Activate the new pyfinlab environment. 
 ```
 conda activate pyfinlab
 ```
-Install the latest package version using pip. 
+
+Install the following pip packages. 
 ```
-pip install pyfinlab
+pip install portfoliolab pyportfolioopt git+https://github.com/PaulMest/tia.git#egg=tia yfinance tqdm pyfinlab ffn bt
 ```
-Check to see if you can import pyfinlab modules. 
+
+Install the following conda package. 
+```
+conda install -c conda-forge blpapi
+```
+
+Install JupyterLab. 
+```
+conda install -c conda-forge jupyterlab
+```
+
+Start the python interpreter and see if you can import the package modules. If the installation was successful, your python interpreter should look something like this. Please open an issue if you encounter any errors. 
 ```
 python
->>> import pyfinlab
->>> 
+>>> import portfoliolab, pypfopt, tia, yfinance, tqdm, pyfinlab, ffn, bt, blpapi
+>>>
 ```
-
-#### Install JupyterLab 
-
-Open Anaconda Navigator. In the "Applications on" menu located near the top, click the menu-arrow and select pyfinlab from the dropdown menu. Then find JupyterLab and click the "Install" button. If you already have Jupyter Lab installed, the button will say "Launch". You should now have everything you need to use pyfinlab and run Jupyter notebooks. 
-
-
-
 
 
 
