@@ -6,8 +6,8 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='pyfinlab',  # Required
-    version='0.0.11',  # Required
-    description='Financial applications focusing on portfolio management',  # Optional
+    version='0.0.12',  # Required
+    description='Financial applications for portfolio management',  # Optional
     long_description=long_description,  # Optional
     long_description_content_type='text/markdown',  # Optional (see note above)
     url='https://github.com/nathanramoscfa/pyfinlab',  # Optional
