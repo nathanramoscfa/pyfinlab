@@ -20,7 +20,7 @@ PyFinanceLab comes with many dependencies. It is recommended you use Anaconda fo
 
 Open Anaconda Prompt and create a new environment called pyfinlab. 
 ```
-conda create -n pyfinlab python=3.8
+conda create -n pyfinlab python=3.8 git
 ```
 
 Activate the new pyfinlab environment. 
