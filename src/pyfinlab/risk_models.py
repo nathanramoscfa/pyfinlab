@@ -157,7 +157,7 @@ def volatility_loop(covariances, weights, freq=252):
     for model in risk_models:
         stdevs[model] = np.sqrt(risk_met.calculate_variance(covariances[model], weights) * freq)
     stdevs = pd.Series(stdevs, name='Annualized Volatility').sort_values(ascending=False)
-    print('The average portfolio volatility using all price data as one sample: {}'.format(stdevs.index[0]))
+    print('The average portfolio volatility using all price data as one sample: {}'.format(stdevs.mean().round(6)))
     return stdevs
 
 
