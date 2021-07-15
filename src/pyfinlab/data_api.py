@@ -1,6 +1,7 @@
 import yfinance as yf
 import tia.bbg.datamgr as dm
 from datetime import datetime
+from dateutil.parser import parse
 
 """
 These functions help easily pull in financial data using either yfinance (free) or tia (requires Bloomberg terminal 
@@ -29,10 +30,16 @@ def price_history(tickers, start_date, end_date, api_source='yfinance'):
             elif end_date != datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d'):
                 raise ValueError
             else:
-                prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
+                pass
         except ValueError:
-            raise ValueError(
-                'Make sure date parameters are strings formatted like "YYYY-MM-DD" or "2020-06-30".')
+            if start_date == datetime.strptime(start_date, '%m/%d/%Y').strftime('%m/%d/%Y'):
+                start_date = parse(start_date).strftime('%Y-%m-%d')
+            elif end_date == datetime.strptime(end_date, '%m/%d/%Y').strftime('%m/%d/%Y'):
+                end_date = parse(end_date).strftime('%Y-%m-%d')
+            else:
+                raise ValueError(
+                    'Make sure date parameters are strings formatted like "YYYY-MM-DD" or "2020-06-30".')
+        prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
     elif api_source == 'bloomberg':
         try:
             for ticker in tickers:
@@ -46,12 +53,18 @@ def price_history(tickers, start_date, end_date, api_source='yfinance'):
             elif end_date != datetime.strptime(end_date, '%m/%d/%Y').strftime('%m/%d/%Y'):
                 raise ValueError
             else:
-                mgr = dm.BbgDataManager()
-                prices = mgr[tickers].get_historical('PX_LAST', start_date, end_date, 'DAILY').fillna(method='ffill')
-                prices = prices.dropna(axis=1)
+                pass
         except ValueError:
-            raise ValueError(
-                'Make sure date parameters are strings formatted like "MM/DD/YYYY" or "06/30/2020".')
+            if start_date == datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d'):
+                start_date = parse(start_date).strftime('%m/%d/%Y')
+            elif end_date == datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d'):
+                end_date = parse(end_date).strftime('%m/%d/%Y')
+            else:
+                raise ValueError(
+                    'Make sure date parameters are strings formatted like "MM/DD/YYYY" or "06/30/2020".')
+        mgr = dm.BbgDataManager()
+        prices = mgr[tickers].get_historical('PX_LAST', start_date, end_date, 'DAILY').fillna(method='ffill')
+        prices = prices.dropna(axis=1)
     else:
         pass
     if prices.isnull().values.any() is True:

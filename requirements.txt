@@ -32,3 +32,4 @@ tqdm==4.61.2
 urllib3==1.26.6
 wincertstore==0.2
 yfinance==0.1.63
+setuptools~=52.0.0
