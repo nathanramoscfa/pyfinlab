@@ -1,5 +1,6 @@
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
@@ -44,7 +45,7 @@ Install the following pip packages.
 pip install portfoliolab yfinance tqdm pyfinlab openpyxl ffn patsy openpyxl
 ```
 
-Install the following github repository. 
+Install the following GitHub repository. 
 ```
 pip install git+https://github.com/PaulMest/tia.git#egg=tia
 ```
@@ -58,13 +59,7 @@ Install the following conda packages using anaconda channel.
 ```
 conda install -c anaconda xlsxwriter statsmodels
 ```
-
-Check to see if you can import pyfinlab modules. Your python interpreter should look like the following if the modules were successfully installed. If you get an error, please open an issue. 
-```
-python
->>> import portfoliolab, tia, blpapi, yfinance, pyfinlab, statsmodels, xlsxwriter, openpyxl, tqdm, ffn
->>> 
-```
+If you get an error, please open an issue. 
 
 
 ## Roadmap
