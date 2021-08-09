@@ -51,7 +51,7 @@ pip install git+https://github.com/PaulMest/tia.git#egg=tia
 
 Install the following conda packages. 
 ```
-conda install -c conda-forge blpapi jupyterlab, statsmodels, xlsxwriter, openpyxl, tqdm
+conda install -c conda-forge blpapi jupyterlab statsmodels xlsxwriter openpyxl tqdm
 ```
 
 Check to see if you can import pyfinlab modules. Your python interpreter should look like the following if the modules were successfully installed. If you get an error, please open an issue. 
