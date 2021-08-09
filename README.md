@@ -41,7 +41,7 @@ conda activate pyfinlab
 
 Install the following pip packages. 
 ```
-pip install portfoliolab yfinance tqdm pyfinlab openpyxl ffn patsy
+pip install portfoliolab yfinance tqdm pyfinlab openpyxl ffn patsy openpyxl
 ```
 
 Install the following github repository. 
@@ -49,9 +49,14 @@ Install the following github repository.
 pip install git+https://github.com/PaulMest/tia.git#egg=tia
 ```
 
-Install the following conda packages. 
+Install the following conda packages using conda-forge channel. 
 ```
-conda install -c conda-forge blpapi jupyterlab statsmodels xlsxwriter openpyxl tqdm
+conda install -c conda-forge blpapi jupyterlab xlsxwriter tqdm
+```
+
+Install the following conda packages using anaconda channel. 
+```
+conda install -c anaconda xlsxwriter statsmodels
 ```
 
 Check to see if you can import pyfinlab modules. Your python interpreter should look like the following if the modules were successfully installed. If you get an error, please open an issue. 
