@@ -1,14 +1,25 @@
 
+
 # PyFinanceLab
 
-PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. PyFinanceLab is in pre-alpha development. Please open an issue if you find any bugs. 
+PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
+
+PyFinanceLab is in pre-alpha development. Please open an issue if you find any bugs. 
 
 
 ## Features
 
-* **Data Api Wrapper**
-    
-    The data api wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) (Bloomberg Professional Service subscription required) libraries for pulling financial data. 
+* **Data API Wrapper**
+	 The data API wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) (Bloomberg Professional Service subscription required) libraries for pulling financial data. 
+
+* **Portfolio Optimizer**
+	Compute an efficient frontier of portfolios based on any one of 16 risk models and 6 return models from Hudson & Thame's [PortfolioLab](https://hudsonthames.org/portfoliolab/) or [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) libraries. 
+
+* **Optimizer Backtest**
+	Backtest optimized portfolios and compute performance charts, efficient frontier plots, and performance statistics. 
+
+* **Excel Report Generation**
+	Show your optimizer results and backtest in a nicely formatted Excel file for further analysis. 
     
 
 ## Installation
@@ -30,17 +41,23 @@ conda activate pyfinlab
 
 Install the following pip packages. 
 ```
-pip install portfoliolab git+https://github.com/PaulMest/tia.git#egg=tia yfinance tqdm pyfinlab
+pip install portfoliolab yfinance tqdm pyfinlab openpyxl ffn patsy
+```
+
+Install the following github repository. 
+```
+pip install git+https://github.com/PaulMest/tia.git#egg=tia
 ```
 
 Install the following conda packages. 
 ```
-conda install -c conda-forge blpapi jupyterlab
+conda install -c conda-forge blpapi jupyterlab, statsmodels, xlsxwriter, openpyxl, tqdm
 ```
+
 Check to see if you can import pyfinlab modules. Your python interpreter should look like the following if the modules were successfully installed. If you get an error, please open an issue. 
 ```
 python
->>> import portfoliolab, tia, blpapi, yfinance, tqdm, pyfinlab
+>>> import portfoliolab, tia, blpapi, yfinance, pyfinlab, statsmodels, xlsxwriter, openpyxl, tqdm, ffn
 >>> 
 ```
 
@@ -49,29 +66,9 @@ python
 
 Future development will include:
 
-* **Classification Schema**
+* **Multifactor Scoring Model**
 
-    Classify an investment universe of tickers into specified categories such as sector, size, or value. 
-
-* **Constraints Modeling**
-
-    Automatically generate weight constraints for a universe of tickers. 
-
-* **Risk Modeling**
-
-    Sample, test, and select the best risk model for generating covariance matrices for input into portfolio optimizers such as mean-variance optimization (MVO). Examples           include empirical covariance, ledoit-wolf shrinkage, minimum covariance determinant, and more.  
-
-* **Portfolio Optimization**
-
-    Utilize the classification schema, constraints modeling, risk modeling, and return modeling to optimize a portfolio of assets. 
-    
-* **Portfolio Backtesting**
-
-    Backtest portfolios and generate performance graphical plots and statistics. 
-
-* **Report Generation**
-
-    Report results in a nicely formatted and easily readable Excel file. 
+    Analyze and rank every stock and ETF according to factors assumed to have excess returns and violate the efficient market hypothesis. 
     
 * **Documentation**
 
