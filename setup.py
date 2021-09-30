@@ -6,7 +6,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='pyfinlab',  # Required
-    version='0.0.21',  # Required
+    version='0.0.22',  # Required
     description='Financial applications for portfolio management',  # Optional
     long_description=long_description,  # Optional
     long_description_content_type='text/markdown',  # Optional (see note above)
@@ -28,23 +28,9 @@ setup(
     package_dir={'': 'src'},  # Optional
     packages=find_packages(where='src'),  # Required
     python_requires='>=3.7',
-    install_requires=[],  # Optional
-    # extras_require={  # Optional
-    #     'dev': ['check-manifest'],
-    #     'test': ['coverage'],
-    # },
-    # package_data={  # Optional
-    #     'sample': ['package_data.dat'],
-    # },
-    # data_files=[('my_data', ['data/data_file'])],  # Optional
-    # entry_points={  # Optional
-    #     'console_scripts': [
-    #         'sample=sample:main',
-    #     ],
-    # },
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/nathanramoscfa/pyfinlab/issues',
-        'Donate Ethereum': 'https://etherscan.io/address/0x5679291c949069A05E4d82A4dB24ba0200c91B20',
+        'Ethereum donation': 'https://etherscan.io/address/0x5679291c949069A05E4d82A4dB24ba0200c91B20',
         'Source': 'https://github.com/nathanramoscfa/pyfinlab',
     },
 )

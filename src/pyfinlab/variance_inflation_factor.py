@@ -4,7 +4,7 @@ from pyfinlab import data_api as api
 from tqdm import tqdm
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-def vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=False):
+def run_vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=False):
     """
     Computes the variance inflation factor of each asset and removes assets which have high variance inflation factor
     in order to reduce multicollinearity.
@@ -24,7 +24,7 @@ def vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=Fa
         vif = pd.DataFrame()
         vif["VIF Factor"] = [variance_inflation_factor(returns.values, i) for i in range(returns.shape[1])]
         vif.index = returns.columns
-        if (vif.max()[0] > threshold):
+        if vif.max()[0] > threshold:
             omit = vif.idxmax()
             returns = returns.drop(omit, axis=1)
     vif.index.name = 'TICKER'

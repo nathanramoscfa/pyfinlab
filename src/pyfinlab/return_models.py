@@ -24,9 +24,9 @@ def return_model(prices, model, risk_free_rate=0.02, frequency=252, span=500):
     :param model: (str) Risk model to use. Should be one of:
 
         PyPortfolioOpt
-            - 'simple_return',
             - 'avg_historical_return',
-            - 'exponential_historical_return',
+            - 'ema_historical_return',
+            - 'capm_return',
 
         PortfolioLab
             - 'simple_return',
