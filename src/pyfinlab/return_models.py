@@ -25,7 +25,7 @@ def return_model(prices, model, risk_free_rate=0.02, frequency=252, span=500):
 
         PyPortfolioOpt
             - 'simple_return',
-            - 'mean_historical_return',
+            - 'avg_historical_return',
             - 'exponential_historical_return',
 
         PortfolioLab

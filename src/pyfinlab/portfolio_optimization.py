@@ -10,7 +10,7 @@ from patsy import dmatrices
 from datetime import datetime, timedelta
 from pyfinlab import data_api as api
 from pyfinlab import risk_models as risk
-from pypfopt import efficient_frontier, plotting
+from pypfopt import efficient_frontier, plotting, objective_functions
 
 """
 These functions optimize portfolios and generate output dataframes, displays, and plots for further analysis and usage. 
@@ -70,31 +70,73 @@ Available objective functions:
 
 # Global variables
 inputs = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name=None)
-mapping = inputs.get('mapping').fillna('').sort_values(by='TICKER')
-tickers = list(mapping.TICKER)
+mapping = inputs.get('mapping').sort_values(by='TICKER').dropna(how='all').fillna('')
+tickers = list(mapping.TICKER.values)
 classification = mapping.iloc[:, :11].set_index('TICKER')
 groups = list(classification.columns[1:])
 
 
-def constraints(ticker_adj=1.0, upper_adj=1.0):
+def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', restricted=False):
+    """
+    Converts tickers to the proper format depending on whether api_source is 'yfinance' or 'bloomberg'.
+
+    :param tickers: (list or str) List of tickers or string of single ticker. Example: ['SPY', 'AGG', 'GLD']
+    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
+    :param country_code: (str) Country code for tickers if using bloomberg as api_source. For example, SPY on the
+                               Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
+    :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
+                                   on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :return: (list) List of formatted tickers.
+    """
+    if api_source == 'yfinance':
+        pass
+    elif api_source == 'bloomberg':
+        try:
+            tickers = pd.DataFrame(tickers, columns=['TICKER'])
+        except ValueError:
+            tickers = pd.DataFrame([tickers], columns=['TICKER'])
+        if asset_class_code == 'Equity':
+            tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + country_code + ' ' + asset_class_code
+        else:
+            tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + asset_class_code
+    else:
+        raise ValueError('api_source must be set to either yfinance or bloomberg')
+    if restricted == True:
+        restricted_list = pd.read_csv('../data/restricted_securities.csv', header=2)[
+            ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
+        if api_source == 'bloomberg':
+            restricted_list['Symbol'] = restricted_list['Symbol'] + ' US Equity'
+        else:
+            pass
+        restricted_tickers = list(restricted_list.Symbol)
+        tickers = tickers[~tickers['TICKER'].isin(restricted_tickers)].squeeze()
+    else:
+        pass
+    tickers = tickers.squeeze() if isinstance(tickers, pd.DataFrame) else tickers
+    return tickers
+
+
+def constraints(cov_matrix, restricted=False):
     """
     Returns dictionaries and tuples of ticker and sector-level constraints which are then input into the
-    optimize_portfolio() function. The ticker-level maximum weighting constraints can be adjusted by a multiple
-    of the ticker_adj parameter. The sector-level maximum weighting constraints can be adjusted by a multiple of the
-    upper_adj parameter.
+    optimize_portfolio() function.
 
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
+    :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :return: (tuple) Returns tuple of ticker-level constraints as a list and sector-level constraints as tuples.
     """
     bounds = mapping[['TICKER', 'MIN', 'MAX']]
+    if restricted == True:
+        restricted_list = pd.read_csv('../data/restricted_securities.csv', header=2)[
+            ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
+        restricted_tickers = list(restricted_list.Symbol)
+        bounds = bounds[~bounds['TICKER'].isin(restricted_tickers)]
+    else:
+        pass
+    keys = list(bounds.TICKER.values)
+    bounds = bounds[bounds['TICKER'].isin(cov_matrix.index)].drop_duplicates()
     bounds = [tuple(x) for x in bounds[['MIN', 'MAX']].to_numpy()]
-    bounds = list(zip(
-        list((min(a[0] * ticker_adj, 1) for a in bounds)),
-        list((min(a[1] * ticker_adj, 1) for a in bounds))
-    ))
 
     region_constraint = inputs.get('region')
     size_constraint = inputs.get('size')
@@ -146,10 +188,78 @@ def constraints(ticker_adj=1.0, upper_adj=1.0):
         sector_upper
     ]
 
-    for ele in upper_list:
-        newList = list(np.clip([ele.get(key) * upper_adj for key in ele.keys()], 0, 1))
-        for key, i in zip(ele.keys(), range(0, len(newList))):
-            ele[key] = newList[i]
+    mapper_list = [
+        region_mapper,
+        size_mapper,
+        style_mapper,
+        credit_mapper,
+        duration_mapper,
+        asset_mapper,
+        type_mapper,
+        holding_mapper,
+        sector_mapper
+    ]
+
+    mapper_list = [{k: v for k, v in i.items() if k in keys} for i in mapper_list]
+    for mapper in mapper_list:
+        mapper = {k: mapper[k] for k in mapper if type(k) is str}
+
+    region_mapper = mapper_list[0]
+    size_mapper = mapper_list[1]
+    style_mapper = mapper_list[2]
+    credit_mapper = mapper_list[3]
+    duration_mapper = mapper_list[4]
+    asset_mapper = mapper_list[5]
+    type_mapper = mapper_list[6]
+    holding_mapper = mapper_list[7]
+    sector_mapper = mapper_list[8]
+
+    def style_constraint(style_mapper):
+        value = dict(sorted(style_mapper.copy().items()))
+        growth = dict(sorted(style_mapper.copy().items()))
+        blend = dict(sorted(style_mapper.copy().items()))
+        for key in value:
+            if value.get(key) == 'Value':
+                value[key], growth[key], blend[key] = 1, 0, 0
+            elif value.get(key) == 'Growth':
+                value[key], growth[key], blend[key] = 0, 1, 0
+            elif value.get(key) == 'Blend':
+                value[key], growth[key], blend[key] = 0, 0, 1
+            elif str(value.get(key)) == '':
+                value[key], growth[key], blend[key] = 0, 0, 0
+            else:
+                pass
+        value = list(value.values())
+        growth = list(growth.values())
+        blend = list(blend.values())
+        return value, growth, blend
+
+    def size_constraint(size_mapper):
+        broadmkt = dict(sorted(size_mapper.copy().items()))
+        largecap = dict(sorted(size_mapper.copy().items()))
+        midcap = dict(sorted(size_mapper.copy().items()))
+        smallcap = dict(sorted(size_mapper.copy().items()))
+        for key in broadmkt:
+            if broadmkt.get(key) == 'Broad Market':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 1, 0, 0, 0
+            elif broadmkt.get(key) == 'Large-cap':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 1, 0, 0
+            elif broadmkt.get(key) == 'Mid-cap':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 1, 0
+            elif broadmkt.get(key) == 'Small-cap':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 1
+            elif str(broadmkt.get(key)) == '':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 0
+            else:
+                pass
+        broadmkt = list(broadmkt.values())
+        largecap = list(largecap.values())
+        midcap = list(midcap.values())
+        smallcap = list(smallcap.values())
+        return broadmkt, largecap, midcap, smallcap
+
+    value, growth, blend = style_constraint(style_mapper)
+    broadmkt, largecap, midcap, smallcap = size_constraint(size_mapper)
 
     return (
         bounds,
@@ -157,7 +267,7 @@ def constraints(ticker_adj=1.0, upper_adj=1.0):
         style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
         duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
         type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
     )
 
 
@@ -168,7 +278,7 @@ def optimize_portfolio(
         obj_function='max_sharpe',
         target_volatility=0.01, target_return=0.2,
         risk_free_rate=0.02, risk_aversion=1, market_neutral=False,
-        ticker_adj = 1.0, upper_adj = 1.0
+        restricted=False, gamma=0.0
 ):
     """
     Compute the optimal portfolio.
@@ -192,26 +302,20 @@ def optimize_portfolio(
     :param risk_aversion: (positive float) Optional, risk aversion parameter (must be greater than 0). Required if
                                            objective function is 'max_quadratic_utility'. Defaults to 1.
     :param market_neutral: (bool) Optional, if weights are allowed to be negative (i.e. short). Defaults to False.
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :return: (tuple) Tuple of weightings (pd.DataFrame) and results (pd.DataFrame) showing risk, return, sharpe ratio
                      metrics.
     """
     # Generate constraints
     (
         bounds,
-        region_lower, region_upper, region_mapper,
-        size_lower, size_upper, size_mapper,
-        style_lower, style_upper, style_mapper,
-        credit_lower, credit_upper, credit_mapper,
-        duration_lower, duration_upper, duration_mapper,
-        asset_lower, asset_upper, asset_mapper,
-        type_lower, type_upper, type_mapper,
-        holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper
-    ) = constraints(ticker_adj, upper_adj)
+        region_lower, region_upper, region_mapper, size_lower, size_upper, size_mapper,
+        style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
+        duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
+        type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
+    ) = constraints(cov_matrix, restricted)
 
     # Empty DataFrames
     weightings = pd.DataFrame()
@@ -219,6 +323,9 @@ def optimize_portfolio(
 
     # Instantiate efficient_frontier class
     ef = efficient_frontier.EfficientFrontier(exp_returns, cov_matrix, bounds)
+
+    # Add objective for L2 regularisation
+    ef.add_objective(objective_functions.L2_reg, gamma=gamma)
 
     # Add Sector Constraints
     ef.add_sector_constraints(region_mapper, region_lower, region_upper)
@@ -230,6 +337,11 @@ def optimize_portfolio(
     ef.add_sector_constraints(type_mapper, type_lower, type_upper)
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
+
+    # Add Custom Sector Constraints
+    ef.add_constraint(lambda w: w @ growth <= w @ value)
+    ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
+    ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
 
     # Objective Function
     if obj_function=='min_volatility':
@@ -277,7 +389,7 @@ def min_risk(
         risk_model='sample_cov',
         return_model='avg_historical_return',
         obj_function='min_volatility',
-        ticker_adj = 1.0, upper_adj = 1.0
+        restricted=False, gamma=0.0
 ):
     """
     Computes the minimum volatility of the minimum volatility portfolio.
@@ -291,17 +403,14 @@ def min_risk(
                                open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
                                'avg_historical_return'.
     :param obj_function: (str) Objective function used in the portfolio optimization. Defaults to 'min_volatility'.
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
+    :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :return: (float) Volatility of the minimum risk portfolio.
     """
     min_volatility = optimize_portfolio(
         exp_returns, cov_matrix,
         risk_model, return_model,
         obj_function,
-        ticker_adj, upper_adj
+        restricted=restricted, gamma=gamma
     )
     return min_volatility[1].loc[risk_model].squeeze()
 
@@ -312,7 +421,7 @@ def max_risk(
         return_model='avg_historical_return',
         obj_function='efficient_risk',
         target_volatility=0.4,
-        ticker_adj = 1.0, upper_adj = 1.0
+        restricted=False, gamma=0.0
 ):
     """
     Computes the maximum volatility of the maximum volatility portfolio. The default target volatility used to optimize
@@ -330,10 +439,7 @@ def max_risk(
     :param target_volatility: (float) Optional, the desired maximum volatility of the resulting portfolio. Required if
                                       objective function is 'efficient_risk', otherwise, parameter is ignored. Defaults
                                       to 0.01.
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
+    :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :return: (float) Portfolio volatility of the maximum risk portfolio.
     """
     max_volatility = optimize_portfolio(
@@ -341,12 +447,13 @@ def max_risk(
         risk_model, return_model,
         obj_function,
         target_volatility,
-        ticker_adj, upper_adj
+        restricted=restricted, gamma=gamma
     )
     return max_volatility[1].loc[risk_model].squeeze()
 
 
-def compute_efficient_frontier(exp_returns, cov_matrix, risk_model, return_model, ticker_adj = 1.0, upper_adj = 1.0):
+def compute_efficient_frontier(
+        exp_returns, cov_matrix, risk_model, return_model, restricted=False, gamma=0.0):
     """
     Computes 20 efficient frontier portfolios.
 
@@ -358,15 +465,17 @@ def compute_efficient_frontier(exp_returns, cov_matrix, risk_model, return_model
     :param return_model: (str) Optional, return model used to compute the exp_returns from either PyPortfolioOpt (free
                                open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
                                'avg_historical_return'.
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :return: (tuple) Tuple of pd.DataFrames representing the optimized portfolio weightings and ex-ante risk, return,
                      and Sharpe ratio.
     """
-    min_risk_ = min_risk(exp_returns, cov_matrix, risk_model, return_model, ticker_adj=ticker_adj, upper_adj=upper_adj)
-    max_risk_ = max_risk(exp_returns, cov_matrix, risk_model, return_model, ticker_adj=ticker_adj, upper_adj=upper_adj)
+    min_risk_ = min_risk(
+        exp_returns, cov_matrix, risk_model, return_model,
+        restricted=restricted, gamma=gamma)
+    max_risk_ = max_risk(
+        exp_returns, cov_matrix, risk_model, return_model,
+        restricted=restricted, gamma=gamma)
     cash_weightings = pd.DataFrame()
     results = pd.DataFrame()
     counter = 1
@@ -376,7 +485,7 @@ def compute_efficient_frontier(exp_returns, cov_matrix, risk_model, return_model
             risk_model, return_model,
             obj_function='efficient_risk',
             target_volatility=i,
-            ticker_adj=ticker_adj, upper_adj=upper_adj
+            restricted=restricted, gamma=gamma
         )
         cash_weighting = optimized_portfolio[int(1)]
         cash_weighting.name = counter
@@ -458,8 +567,10 @@ def risk_weightings(optimized_portfolios, cov_matrix):
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset.
     :return: (pd.DataFrame) Risk-weightings for efficient frontier portfolios.
     """
+    optimized_portfolios = optimized_portfolios[(optimized_portfolios.T != 0).any()]
     cash_weightings = optimized_portfolios.iloc[:, 10:]
-    risk_weightings = pd.DataFrame(index=tickers)
+    risk_weightings = pd.DataFrame(index=cash_weightings.index)
+    classifications = classification[classification.index.isin(risk_weightings.index)]
     for i in range(1, cash_weightings.shape[1] + 1):
         try:
             w = cash_weightings[i]
@@ -469,7 +580,7 @@ def risk_weightings(optimized_portfolios, cov_matrix):
         pvol = np.sqrt(np.dot(w.T, np.dot(cov_matrix, w)))
         pvolw = ((np.dot(w, cov_matrix)) / pvar) * w
         risk_weightings = pd.concat([risk_weightings, pvolw], axis=1)
-    risk_weightings = pd.concat([classification, risk_weightings.round(4)], axis=1)
+    risk_weightings = pd.concat([classifications, risk_weightings.round(4)], axis=1)
     return risk_weightings
 
 
@@ -490,7 +601,7 @@ def risk_focus(optimized_portfolios, cov_matrix):
 
 def compile_focus_stats(optimized_portfolios, cov_matrix, focus='cash'):
     """
-    Computes the risk weightings of all portfolios.
+    Computes the cash and risk weightings of all efficient frontier portfolios.
 
     :param optimized_portfolios: (pd.DataFrame) Weightings for efficient frontier portfolios.
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset.
@@ -506,6 +617,8 @@ def compile_focus_stats(optimized_portfolios, cov_matrix, focus='cash'):
     risk_focus_df.drop_duplicates(inplace=True)
     cash_focus_df.index.name = 'Cash Weighting'
     risk_focus_df.index.name = 'Risk Weighting'
+    cash_focus_df = cash_focus_df.loc[cash_focus_df.index!='']
+    risk_focus_df = risk_focus_df.loc[risk_focus_df.index!='']
     return cash_focus_df if focus == 'cash' else risk_focus_df
 
 
@@ -531,11 +644,10 @@ def compute_ticker_vols(tickers, cov_matrix):
     return ticker_stds
 
 
-def eff_frontier_plot(tickers, cov_matrix, exp_returns, results, figsize=(12, 6), save=False, show=True):
+def eff_frontier_plot(cov_matrix, exp_returns, results, figsize=(12, 6), save=False, show=True):
     """
     Plots the efficient frontier and individual assets.
 
-    :param tickers: (list) List of tickers.
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset. This **must** be positive semidefinite,
                                       otherwise optimization will fail.
     :param exp_returns: (pd.Series) Expected returns for each asset.
@@ -547,7 +659,7 @@ def eff_frontier_plot(tickers, cov_matrix, exp_returns, results, figsize=(12, 6)
     :param show: (bool) Optional, displays plot. Defaults to True.
     :return: (fig) Plot of efficient frontier and individual assets.
     """
-    ticker_vols = compute_ticker_vols(tickers, cov_matrix)
+    ticker_vols = compute_ticker_vols(cov_matrix.index, cov_matrix)
     portfolio_volatilities = list(results.iloc[1:2, :].squeeze())
     returns = list(results.iloc[:1, :].squeeze())
     sharpe_ratios = list(results.iloc[2:3, :].squeeze())
@@ -585,7 +697,9 @@ def eff_frontier_plot(tickers, cov_matrix, exp_returns, results, figsize=(12, 6)
 
 
 def monte_carlo_frontier(
-        cov_matrix, exp_returns, ticker_adj = 1.0, upper_adj = 1.0, figsize=(11, 5), save=False, show=True):
+        cov_matrix, exp_returns,
+        figsize=(11, 5),
+        save=False, show=True, restricted=False, gamma=0.0):
     """
     Plots the efficient frontier and individual assets.
 
@@ -593,30 +707,25 @@ def monte_carlo_frontier(
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset. This **must** be positive semidefinite,
                                       otherwise optimization will fail.
     :param exp_returns: (pd.Series) Expected returns for each asset.
-    :param ticker_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker
-                               level. Defaults to 1.0.
-    :param upper_adj: (float) Optional, multiple by which to multiply the maximum weighting constraints at the sector
-                              level. Defaults to 1.0.
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (11, 5).
     :param save: (bool) Optional, width, height in inches. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :return: (fig) Plot of efficient frontier and individual assets.
     """
     (
         bounds,
-        region_lower, region_upper, region_mapper,
-        size_lower, size_upper, size_mapper,
-        style_lower, style_upper, style_mapper,
-        credit_lower, credit_upper, credit_mapper,
-        duration_lower, duration_upper, duration_mapper,
-        asset_lower, asset_upper, asset_mapper,
-        type_lower, type_upper, type_mapper,
-        holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper
-    ) = constraints(ticker_adj, upper_adj)
+        region_lower, region_upper, region_mapper, size_lower, size_upper, size_mapper,
+        style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
+        duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
+        type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
+    ) = constraints(cov_matrix, restricted)
     fig, ax = plt.subplots(figsize=figsize)
-    ef = efficient_frontier.EfficientFrontier(exp_returns, cov_matrix, constraints()[0])
+    ef = efficient_frontier.EfficientFrontier(exp_returns, cov_matrix, bounds)
+    ef.add_objective(objective_functions.L2_reg, gamma=gamma)
     ef.add_sector_constraints(region_mapper, region_lower, region_upper)
     ef.add_sector_constraints(size_mapper, size_lower, size_upper)
     ef.add_sector_constraints(style_mapper, style_lower, style_upper)
@@ -626,14 +735,21 @@ def monte_carlo_frontier(
     ef.add_sector_constraints(type_mapper, type_lower, type_upper)
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
+    ef.add_constraint(lambda w: w @ growth <= w @ value)
+    ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
+    ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
     plotting.plot_efficient_frontier(ef, ax=ax, show_assets=False)
     ax.get_lines()[0].set_color("black")
     ax.get_lines()[0].set_linewidth(2.0)
 
     # Find the tangency portfolio
-    ef.max_sharpe()
-    ret_tangent, std_tangent, _ = ef.portfolio_performance()
-    ax.scatter(std_tangent, ret_tangent, marker="*", s=400, c="red", label="Max Sharpe")
+    try:
+        ef.max_sharpe()
+        ret_tangent, std_tangent, _ = ef.portfolio_performance()
+        ax.scatter(std_tangent, ret_tangent, marker="*", s=400, c="red", label="Max Sharpe")
+        ax.legend(['Constrained Efficient Frontier', "Max Sharpe"], loc='upper left')
+    except:
+        ax.legend(['Constrained Efficient Frontier'], loc='upper left')
 
     # Generate random portfolios
     n_samples = 10000
@@ -648,28 +764,9 @@ def monte_carlo_frontier(
 
     # Output
     ax.set_title("Efficient Frontier with Random Portfolios")
-    ax.legend(['Constrained Efficient Frontier', "Max Sharpe"], loc='upper left')
     if save==True: plt.savefig(
         '../charts/monte_carlo_frontier_{}.png'.format(datetime.today().strftime('%m-%d-%Y')), bbox_inches='tight')
     if show==False: plt.close()
-
-
-def name(api_source='yfinance', ticker=['SPY']):
-    """
-    Downloads the name of each ticker in ticker list. Only 1 ticker can be downloaded at a time if using yfinance as
-    api_source. There is not such limit if api_source is bloomberg.
-
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param ticker: (list) List of single ticker if using yfinance, or, multiple tickers if using bloomberg.
-    :return: (str) Name of the ticker, or, tickers.
-    """
-    if api_source=='yfinance':
-        name = api.current_equity_data(ticker, ['longName'], api_source).squeeze()
-    elif api_source=='bloomberg':
-        name = api.current_equity_data(ticker, ['LONG_COMP_NAME'], api_source).squeeze()
-    else:
-        raise ValueError('api_source must be set to either yfinance or bloomberg')
-    return name
 
 
 def backtest_timeseries(prices, optimized_portfolios, api_source='yfinance', benchmark_ticker='SPY', pv=1000000):
@@ -699,7 +796,7 @@ def backtest_timeseries(prices, optimized_portfolios, api_source='yfinance', ben
     start_date = portfolio_values.index[0].strftime('%Y-%m-%d')
     end_date = (portfolio_values.index[-1] + timedelta(days=1)).strftime('%Y-%m-%d')
     benchmark_prices = api.price_history([benchmark_ticker], start_date, end_date, api_source)
-    benchmark_name = name(api_source, benchmark_ticker)
+    benchmark_name = api.name(api_source, benchmark_ticker)
     benchmark_values = benchmark_prices.copy().squeeze()
     benchmark_values = benchmark_values / benchmark_values[0]
     benchmark_values.name = benchmark_ticker
@@ -720,117 +817,3 @@ def days(start_date, end_date):
     b = datetime.strptime(end_date, date_format)
     delta = b - a
     return delta.days
-
-
-def backtest_chart1(backtest_timeseries, start_date, end_date, figsize=(15, 9), save=False, show=True, yscale='linear'):
-    """
-    Plots the performance for all efficient frontier portfolios.
-
-    :param backtest_timeseries: (pd.DataFrame) Ex-post performance of efficient frontier portfolios.
-    :param start_date: (str) Start date string or datetime. Date format 'MM-DD-YYYY'.
-    :param end_date: (str) End date string or datetime. Date format 'MM-DD-YYYY'.
-    :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
-                                   Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
-    :param show: (bool) Optional, displays plot. Defaults to True.
-    :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
-                         to linear.
-    :return: (fig) Plot of performance for all efficient frontier portfolios.
-    """
-    backtest_timeseries = backtest_timeseries.loc[start_date: end_date]
-    backtest_timeseries = backtest_timeseries / backtest_timeseries.iloc[0]
-    x_values = backtest_timeseries.index
-    y_values = backtest_timeseries.iloc[:, :-1]
-    fig = plt.gcf()
-    fig.set_size_inches(figsize)
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d-%Y'))
-    plt.gca().xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-    plt.plot(x_values, y_values)
-    plt.plot(backtest_timeseries.iloc[:, -1:], 'k')
-    plt.legend(backtest_timeseries.columns)
-    plt.title("\nBacktest of Portfolios {} to {}".format(
-        x_values[0].strftime('%m-%d-%Y'),
-        x_values[-1].strftime('%m-%d-%Y')))
-    plt.yscale(yscale)
-    plt.xlabel('Date')
-    plt.ylabel('Value of $1 Investment')
-    plt.gcf().autofmt_xdate()
-    if save==True: plt.savefig(
-        '../charts/backtest_chart1_{}.png'.format(datetime.today().strftime('%m-%d-%Y')), bbox_inches='tight')
-    if show==False: plt.close()
-
-
-def backtest_chart2(
-        backtest_timeseries, start_date, end_date, portfolios=[2, 5, 9, 13, 17],
-        api_source='yfinance', figsize=(15, 9), save=False, show=True, yscale='linear'):
-    """
-    Plots the performance for 5 selected efficient frontier portfolios.
-
-    :param backtest_timeseries: (pd.DataFrame) Ex-post performance of efficient frontier portfolios.
-    :param start_date: (str) Start date string or datetime. Date format 'MM-DD-YYYY'.
-    :param end_date: (str) End date string or datetime. Date format 'MM-DD-YYYY'.
-    :param portfolios: (list) Optional, list of 5 integers anywhere from 1-20 corresponding to portfolios along the efficient
-                              frontier in ascending order of risk. Portfolio 1 has the lowest risk while Portfolio 20
-                              has the highest risk.
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
-                                   Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
-    :param show: (bool) Optional, displays plot. Defaults to True.
-    :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
-                         to linear.
-    :return: (fig) Plot of performance for all efficient frontier portfolios.
-    """
-
-    backtest_timeseries = backtest_timeseries.loc[start_date: end_date]
-    backtest_timeseries = backtest_timeseries / backtest_timeseries.iloc[0]
-    plt.figure(figsize=figsize)
-    backtest_timeseries[portfolios[0]].plot(color='#00B050', label='Portfolio {}'.format(portfolios[0]))
-    backtest_timeseries[portfolios[1]].plot(color='#92D050', label='Portfolio {}'.format(portfolios[1]))
-    backtest_timeseries[portfolios[2]].plot(color='#00B0F0', label='Portfolio {}'.format(portfolios[2]))
-    backtest_timeseries[portfolios[3]].plot(color='#FFC000', label='Portfolio {}'.format(portfolios[3]))
-    backtest_timeseries[portfolios[4]].plot(color='#FF0000', label='Portfolio {}'.format(portfolios[4]))
-    backtest_timeseries[backtest_timeseries.columns[-1]].plot(
-        color='#000000',
-        label='{} ({})'.format(name(api_source, backtest_timeseries.columns[-1]), backtest_timeseries.columns[-1]))
-    plt.yscale(yscale)
-    plt.legend()
-    plt.title("\nBacktest of Portfolios {} to {}".format(
-        backtest_timeseries.index[0].strftime('%m-%d-%Y'),
-        backtest_timeseries.index[-1].strftime('%m-%d-%Y')))
-    plt.xlabel('Date')
-    plt.ylabel('Value of $1 Investment')
-    if save==True: plt.savefig(
-        '../charts/backtest_chart2_{}.png'.format(datetime.today().strftime('%m-%d-%Y')), bbox_inches='tight')
-    if show==False: plt.close()
-
-
-def backtest_linechart(
-        backtest_timeseries, start_date, end_date, portfolios=[2, 5, 9, 13, 17],
-        api_source='yfinance', chart=1, figsize=(15, 9), save=False, show=True, yscale='linear'):
-    """
-    Plots the performance for 5 selected efficient frontier portfolios.
-
-    :param backtest_timeseries: (pd.DataFrame) Ex-post performance of efficient frontier portfolios.
-    :param start_date: (str) Start date string or datetime. Date format 'MM-DD-YYYY'.
-    :param end_date: (str) End date string or datetime. Date format 'MM-DD-YYYY'.
-    :param portfolios: (list) Optional, list of 5 integers anywhere from 1-20 corresponding to portfolios along the efficient
-                              frontier in ascending order of risk. Portfolio 1 has the lowest risk while Portfolio 20
-                              has the highest risk.
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
-                                   Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
-    :param show: (bool) Optional, displays plot. Defaults to True.
-    :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
-                         to linear.
-    :return: (fig) Plot of performance for all efficient frontier portfolios.
-    """
-    if chart==1:
-        backtest_chart1(backtest_timeseries, start_date, end_date, figsize, save, show, yscale)
-    elif chart==2:
-        backtest_chart2(
-            backtest_timeseries, start_date, end_date, portfolios,
-            api_source, figsize, save, show, yscale)
-    else:
-        raise ValueError('chart parameter must be 1 or 2')

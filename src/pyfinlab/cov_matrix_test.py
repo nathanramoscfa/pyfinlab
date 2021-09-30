@@ -18,7 +18,7 @@ risk_models = rm.risk_models
 risk_met = RiskMetrics()
 
 
-def covariance_loop(prices, kde_bwidth, basic_shrinkage):
+def covariance_loop(prices, kde_bwidth=0.01, basic_shrinkage=0.1):
     """
     Calculates a covariance matrix using all available risk models.
 

@@ -1,13 +1,15 @@
 import pandas as pd
 from datetime import datetime
-from pyfinlab import portopt as opt
+from pyfinlab import portfolio_optimization as opt
 
 """
-These functions generate formatted Excel files.  
+These functions generate formatted Excel files. 
 """
 
 def generate_excel_report(
-        optimized_portfolios, risk_weightings, results, backtest_timeseries, cash_focus, risk_focus, periodic_stats):
+        optimized_portfolios, risk_weightings, results, backtest_timeseries, cash_focus, risk_focus, periodic_stats,
+        label='large_acct'
+):
     """
     Generates a formatted Excel portfolio optimization analysis.
 
@@ -20,13 +22,15 @@ def generate_excel_report(
     :risk_focus: (pd.DataFrame) Risk-weightings weighted by group for efficient frontier portfolios.
     :periodic_stats: (pd.DataFrame) Periodic stats computed using the performance.compile_periodic_stats() function
                                     from pyfinlab library.
+    :label: (str) Label added to filename as a descriptor.
     :return: (obj) Creates Excel workbook objects and saves detailed, formatted results of portfolio optimization.
     """
     report_description = 'optimized_portfolios'
     today = datetime.today().strftime('%m-%d-%Y')
-    filename = '../excel/{}_{}.xlsx'.format(report_description, today)
-    cash_portfolios = optimized_portfolios.copy()
-    risk_portfolios = risk_weightings.copy()
+    filename = '../excel/{}_{}_{}.xlsx'.format(report_description, today, label)
+    cash_portfolios = optimized_portfolios.loc[~(optimized_portfolios.iloc[:, 10:]==0).all(axis=1)]
+    cash_portfolios.index.name = 'TICKER'
+    risk_portfolios = risk_weightings.loc[~(risk_weightings.iloc[:, 10:]==0).all(axis=1)]
     dashboard = results.append(opt.cash_focus(optimized_portfolios).get('ASSET_CLASS'))
     dashboard.index.name = 'Dashboard'
 
@@ -96,43 +100,51 @@ def generate_excel_report(
                                    'fg_color': '#F2F2F2',
                                    'bold': True})
     format6 = workbook.add_format({'fg_color': '#F2F2F2'})  # Background Color
+    format7 = workbook.add_format({'fg_color': '#F2F2F2'})  # Background Color
+    format7.set_right(2)
 
     # dashboard
     worksheet1.hide_gridlines()
-    worksheet1.set_zoom(130)
+    worksheet1.set_zoom(110)
     worksheet1.set_column('A:A', 22, format1)
-    worksheet1.set_column('B:U', None, format6)
+    worksheet1.set_column('B:U', 7, format1)
     worksheet1.set_row(1, None, format4)
     worksheet1.set_row(2, None, format5)
     worksheet1.set_row(3, None, format3)
     worksheet1.set_row(4, None, format2)
     worksheet1.set_row(5, None, format2)
-    for row in range(dashboard.shape[0] + 2, 40):
+    worksheet1.set_row(6, None, format2)
+    worksheet1.set_row(7, None, format2)
+    worksheet1.set_row(8, None, format2)
+    worksheet1.set_row(9, None, format2)
+    worksheet1.set_row(10, None, format2)
+    for row in range(dashboard.shape[0] + 2, 43):
         worksheet1.write('A{}'.format(row), ' ')
     worksheet1.set_default_row(hide_unused_rows=True)
     worksheet1.set_column('V:XFD', None, None, {'hidden': True})
     worksheet1.conditional_format('B4:U4', {'type': '3_color_scale'})
     worksheet1.insert_image(
-        'B8', '../charts/backtest_chart2_{}.png'.format(datetime.today().strftime('%m-%d-%Y')))
+        'B12', '../charts/linechart_{}.png'.format(datetime.today().strftime('%m-%d-%Y')))
     worksheet1.conditional_format('B5:U{}'.format(dashboard.shape[0] + 1), {'type': '3_color_scale',
                                                                             'min_color': '#63BE7B',
                                                                             'mid_color': '#FFEB84',
                                                                             'max_color': '#F8696B'})
+
 
     # cash_weighting
     worksheet2.hide_gridlines()
     worksheet2.freeze_panes(1, 2, 1, 7)
     worksheet2.set_column('A:A', 16, format1)
     worksheet2.set_column('B:B', 55, format1)
-    worksheet2.set_column('C:C', 21, format1, {'level': 3})
-    worksheet2.set_column('D:D', 16, format1, {'level': 3})
-    worksheet2.set_column('E:E', 19, format1, {'level': 2})
-    worksheet2.set_column('F:F', 22, format1, {'level': 2})
-    worksheet2.set_column('G:G', 12, format1, {'level': 1})
-    worksheet2.set_column('H:H', 12, format1, {'level': 1})
-    worksheet2.set_column('I:I', 18, format1, {'level': 1})
+    worksheet2.set_column('C:C', 30, format1, {'level': 3})
+    worksheet2.set_column('D:D', 13, format1, {'level': 3})
+    worksheet2.set_column('E:E', 12, format1, {'level': 2})
+    worksheet2.set_column('F:F', 10, format1, {'level': 2})
+    worksheet2.set_column('G:G', 22, format1, {'level': 1})
+    worksheet2.set_column('H:H', 19, format1, {'level': 1})
+    worksheet2.set_column('I:I', 16, format1, {'level': 1})
     worksheet2.set_column('J:J', 14, format1, {'level': 1})
-    worksheet2.set_column('K:K', 17, format1, {'level': 1})
+    worksheet2.set_column('K:K', 16, format1, {'level': 1})
     worksheet2.set_column('L:AE', 7, format2)
     worksheet2.set_column('AF:XFD', None, None, {'hidden': True})
     worksheet2.autofilter('A1:AE{}'.format(optimized_portfolios.shape[1] + 1))
@@ -147,15 +159,15 @@ def generate_excel_report(
     worksheet3.freeze_panes(1, 2, 1, 7)
     worksheet3.set_column('A:A', 16, format1)
     worksheet3.set_column('B:B', 55, format1)
-    worksheet3.set_column('C:C', 21, format1, {'level': 3})
-    worksheet3.set_column('D:D', 16, format1, {'level': 3})
-    worksheet3.set_column('E:E', 19, format1, {'level': 2})
-    worksheet3.set_column('F:F', 22, format1, {'level': 2})
-    worksheet3.set_column('G:G', 12, format1, {'level': 1})
-    worksheet3.set_column('H:H', 12, format1, {'level': 1})
-    worksheet3.set_column('I:I', 18, format1, {'level': 1})
+    worksheet3.set_column('C:C', 30, format1, {'level': 3})
+    worksheet3.set_column('D:D', 13, format1, {'level': 3})
+    worksheet3.set_column('E:E', 12, format1, {'level': 2})
+    worksheet3.set_column('F:F', 10, format1, {'level': 2})
+    worksheet3.set_column('G:G', 22, format1, {'level': 1})
+    worksheet3.set_column('H:H', 19, format1, {'level': 1})
+    worksheet3.set_column('I:I', 16, format1, {'level': 1})
     worksheet3.set_column('J:J', 14, format1, {'level': 1})
-    worksheet3.set_column('K:K', 17, format1, {'level': 1})
+    worksheet3.set_column('K:K', 16, format1, {'level': 1})
     worksheet3.set_column('L:AE', 7, format2)
     worksheet3.set_column('AF:XFD', None, None, {'hidden': True})
     worksheet3.autofilter('A1:AE{}'.format(optimized_portfolios.shape[1] + 1))
@@ -169,7 +181,7 @@ def generate_excel_report(
     worksheet4.hide_gridlines()
     worksheet4.freeze_panes(1, 1)
     worksheet4.set_zoom(130)
-    worksheet4.set_column('A:A', 22, format1)
+    worksheet4.set_column('A:A', 31, format1)
     worksheet4.set_column('B:U', None, format6)
     [worksheet4.set_row(i, None, format2) for i in range(1, cash_focus.shape[0] + 1)]
     worksheet4.autofilter('A1:U{}'.format(cash_focus.shape[1] + 1))
@@ -184,7 +196,7 @@ def generate_excel_report(
     worksheet5.hide_gridlines()
     worksheet5.freeze_panes(1, 1)
     worksheet5.set_zoom(130)
-    worksheet5.set_column('A:A', 22, format1)
+    worksheet5.set_column('A:A', 31, format1)
     worksheet5.set_column('B:U', None, format6)
     [worksheet5.set_row(i, None, format2) for i in range(1, risk_focus.shape[0] + 1)]
     worksheet5.autofilter('A1:U{}'.format(risk_focus.shape[1] + 1))

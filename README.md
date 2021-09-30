@@ -1,6 +1,7 @@
 
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
@@ -42,12 +43,15 @@ conda activate pyfinlab
 
 Install the following pip packages. 
 ```
-pip install portfoliolab yfinance tqdm pyfinlab openpyxl ffn patsy openpyxl
+pip install portfoliolab yfinance tqdm pyfinlab openpyxl patsy openpyxl bt
 ```
 
-Install the following GitHub repository. 
+Install the following GitHub repositories one at a time. 
 ```
 pip install git+https://github.com/PaulMest/tia.git#egg=tia
+```
+```
+pip install git+https://github.com/nathanramoscfa/ffn.git
 ```
 
 Install the following conda packages using conda-forge channel. 
@@ -70,7 +74,7 @@ Future development will include:
 
     Analyze and rank every stock and ETF according to factors assumed to have excess returns and violate the efficient market hypothesis. 
     
-* **Documentation**
+* **Documentation and Testing**
 
-    Documentation will be published as this Python library is further developed. 
+    Documentation and testing will be published as this Python library is further developed. 
 

@@ -8,7 +8,7 @@ from pyfinlab import return_models as rets
 from pyfinlab import risk_models as risk
 
 """
-These functions help backtest efficient frontier portfolios calculated using the portopt.py module.  
+These functions measure the historical performance of efficient frontier portfolios. 
 """
 periods = [5, 21, 63, 126, 252, 756, 1260, 2520]
 
@@ -161,15 +161,19 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
         sortino_b = cagr[benchmark_ticker] / downside_deviation_b
         # capture ratio
         up_returns = yx[yx[portfolio] >= 0].round(4)
-        up_geo_avg = (1 + up_returns[portfolio]).prod() ** (1 / len(up_returns.index)) - 1
-        up_geo_avg_b = (1 + up_returns[benchmark_ticker]).prod() ** (1 / len(up_returns.index)) - 1
-        down_returns = yx[yx[portfolio] < 0].round(4)
-        down_geo_avg = (1 + down_returns[portfolio]).prod() ** (1 / len(down_returns.index)) - 1
-        down_geo_avg_b = (1 + down_returns[benchmark_ticker]).prod() ** (1 / len(down_returns.index)) - 1
-        up_capture = up_geo_avg / up_geo_avg_b
-        down_capture = down_geo_avg / down_geo_avg_b
-        capture_ratio = up_capture / down_capture
-        capture_ratio_b = 1.
+        try:
+            up_geo_avg = (1 + up_returns[portfolio]).prod() ** (1 / len(up_returns.index)) - 1
+            up_geo_avg_b = (1 + up_returns[benchmark_ticker]).prod() ** (1 / len(up_returns.index)) - 1
+            down_returns = yx[yx[portfolio] < 0].round(4)
+            down_geo_avg = (1 + down_returns[portfolio]).prod() ** (1 / len(down_returns.index)) - 1
+            down_geo_avg_b = (1 + down_returns[benchmark_ticker]).prod() ** (1 / len(down_returns.index)) - 1
+            up_capture = up_geo_avg / up_geo_avg_b
+            down_capture = down_geo_avg / down_geo_avg_b
+            capture_ratio = up_capture / down_capture
+            capture_ratio_b = 1.
+        except ZeroDivisionError:
+            capture_ratio = np.nan
+            capture_ratio_b = 1.
         # drawdown
         lowest_return = yx[portfolio].min()
         drawdown = p.copy()[[portfolio]]

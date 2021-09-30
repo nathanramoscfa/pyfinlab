@@ -4,37 +4,16 @@ import tia.bbg.datamgr as dm
 from tia.bbg import LocalTerminal
 from datetime import datetime, timedelta
 from dateutil.parser import parse
+from pyfinlab import portfolio_optimization as opt
 
 """
 These functions help easily pull financial data using either yfinance (free) or tia (requires Bloomberg terminal 
 subscription). 
 
 """
-def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity'):
-    """
-    Converts tickers to the proper format depending on whether api_source is 'yfinance' or 'bloomberg'.
 
-    :param tickers: (list) List of tickers. Example: ['SPY', 'AGG', 'GLD']
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param country_code: (str) Country code for tickers if using bloomberg as api_source. For example, SPY on the
-                               Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
-    :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
-                                   on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
-    :return: (list) List of formatted tickers.
-    """
-    if api_source == 'yfinance':
-        pass
-    elif api_source == 'bloomberg':
-        if asset_class_code=='Equity':
-            tickers = [ticker + ' {} {}'.format(country_code, asset_class_code) for ticker in tickers]
-        else:
-            tickers = [ticker + ' {}'.format(asset_class_code) for ticker in tickers]
-    else:
-        raise ValueError('api_source must be set to either yfinance or bloomberg')
-    return tickers
-
-
-def price_history(tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity'):
+def price_history(
+        tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity', restricted=False):
     """
     Downloads price history data into a pd.DataFrame.
 
@@ -50,11 +29,14 @@ def price_history(tickers, start_date, end_date, api_source='yfinance', country_
                                Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :return: (pd.DataFrame) Dataframe of daily asset prices as a time series.
     """
-    tickers = tickers_(tickers, api_source, country_code, asset_class_code)
+    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
     if api_source == 'yfinance':
         prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close'].dropna()
+        if isinstance(prices, pd.Series):
+            prices = prices.to_frame()
     elif api_source == 'bloomberg':
         mgr = dm.BbgDataManager()
         prices = mgr[tickers].get_historical('PX_LAST', start_date, end_date, 'DAILY').fillna(method='ffill').dropna()
@@ -82,14 +64,15 @@ def risk_free_rate(start_date, end_date, api_source='yfinance'):
     if api_source == 'yfinance':
         return (price_history(['^TNX'], start_date, end_date, 'yfinance').mean() / 100).round(4).squeeze()
     elif api_source == 'bloomberg':
-        return (price_history(
-            ['USGG10YR'], start_date, end_date, 'bloomberg', None, 'Index'
-        ).mean()/100).round(4).squeeze()
+        return (price_history(['USGG10YR'], start_date, end_date, 'bloomberg', None, 'Index').mean()/100).round(4).squeeze()
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
 
 
-def current_equity_data(tickers, info, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False):
+def current_equity_data(
+        tickers, info, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False,
+        start_date=None, end_date=None, restricted=False
+):
     """
     Downloads point-in-time data. For example, you can download the current price or fundamental data like the PE
     ratio. You can only download available data for one ticker at a time if api_source is yfinance. You can download
@@ -106,9 +89,11 @@ def current_equity_data(tickers, info, api_source='yfinance', country_code='US',
                                Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
+    :param start_date: (str) Start date string or datetime. Date format must be 'YYYY-MM-DD'.
+    :param end_date: (str) End date string or datetime. Date format must be 'YYYY-MM-DD'.
     :return: (str) Returns the current point-in-time data as specified in the info parameter for the requested tickers.
     """
-    tickers = tickers_(tickers, api_source, country_code, asset_class_code)
+    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
     if api_source == 'yfinance':
         if get_list==True:
             print(yf.Ticker(tickers).info)
@@ -121,7 +106,8 @@ def current_equity_data(tickers, info, api_source='yfinance', country_code='US',
             return df
     elif api_source == 'bloomberg':
         df = LocalTerminal.get_reference_data(
-            tickers, info, ignore_field_error=1, ignore_security_error=1).as_frame()
+            tickers, info, CUST_TRR_START_DT=start_date, CUST_TRR_END_DT=end_date,
+            ignore_field_error=1, ignore_security_error=1).as_frame()
         df.index.name = 'TICKER'
         return df
     else:
@@ -148,3 +134,21 @@ def start_end_dates(num_years=10, api_source='yfinance'):
     else:
         raise ValueError('api_source must be either yfinance or bloomberg. ')
     return start_date, end_date
+
+
+def name(api_source='yfinance', ticker=['SPY']):
+    """
+    Downloads the name of each ticker in ticker list. Only 1 ticker can be downloaded at a time if using yfinance as
+    api_source. There is not such limit if api_source is bloomberg.
+
+    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
+    :param ticker: (list) List of single ticker if using yfinance, or, multiple tickers if using bloomberg.
+    :return: (str) Name of the ticker, or, tickers.
+    """
+    if api_source=='yfinance':
+        name = current_equity_data(ticker, ['longName'], api_source).squeeze()
+    elif api_source=='bloomberg':
+        name = current_equity_data(ticker, ['LONG_COMP_NAME'], api_source).squeeze()
+    else:
+        raise ValueError('api_source must be set to either yfinance or bloomberg')
+    return name

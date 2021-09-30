@@ -17,6 +17,35 @@ function for ease of use.
 risk_met = RiskMetrics()
 risk_estimators = RiskEstimators()
 
+risk_models = [
+    # PyPortfolioOpt
+    'sample_cov',
+    'semicovariance',
+    'exp_cov',
+    'ledoit_wolf_constant_variance',
+    'ledoit_wolf_single_factor',
+    'ledoit_wolf_constant_correlation',
+    'oracle_approximating',
+
+    # PortfolioLab
+    'sample_covariance',
+    'minimum_covariance_determinant',
+    'empirical_covariance',
+    'shrinked_covariance_basic',
+    'shrinked_covariance_lw',
+    'shrinked_covariance_oas',
+    'semi_covariance',
+    'exponential_covariance',
+    'constant_residual_eigenvalues_denoised',
+    'constant_residual_spectral_denoised',
+    'targeted_shrinkage_denoised',
+    'targeted_shrinkage_detoned',
+    'constant_residual_detoned',
+    'hierarchical_filtered_complete',
+    'hierarchical_filtered_single',
+    'hierarchical_filtered_avg'
+]
+
 
 def risk_model(prices, model, kde_bwidth=0.01, basic_shrinkage=0.1):
     """
