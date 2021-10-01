@@ -2,6 +2,7 @@
 
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
@@ -12,9 +13,9 @@ PyFinanceLab is in pre-alpha development. Please open an issue if you find any b
 ## Features
 
 * **Data API Wrapper**
-	 The data API wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) (Bloomberg Professional Service subscription required) libraries for pulling financial data. 
+	 The data API wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) ([Bloomberg Professional Services](https://www.bloomberg.com/professional/) subscription) Python libraries for pulling financial data. 
 
-* **Portfolio Optimizer**
+* **Portfolio Optimization**
 	Compute an efficient frontier of portfolios based on any one of 16 risk models and 6 return models from Hudson & Thame's [PortfolioLab](https://hudsonthames.org/portfoliolab/) or [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) libraries. 
 
 * **Optimizer Backtest**
