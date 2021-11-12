@@ -17,7 +17,7 @@ PyFinanceLab is in pre-alpha development. Please open an issue if you find any b
 	 The data API wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) ([Bloomberg Professional Services](https://www.bloomberg.com/professional/) subscription) Python libraries for pulling financial data. 
 
 * **Portfolio Optimization**
-	Compute an efficient frontier of portfolios based on any one of 7 risk models and 3 return models from [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) libraries. 
+	Compute an efficient frontier of portfolios based on any one of 7 risk models and 3 return models from the [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) library.
 
 * **Optimizer Backtest**
 	Backtest optimized portfolios and compute performance charts, efficient frontier plots, and performance statistics. 
