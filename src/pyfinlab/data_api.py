@@ -13,7 +13,9 @@ subscription).
 """
 
 def price_history(
-        tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity', restricted=False):
+        tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity',
+        restricted=False, dropna=True
+):
     """
     Downloads price history data into a pd.DataFrame.
 
@@ -30,20 +32,26 @@ def price_history(
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
     :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param dropna: (bool): Optional, removes rows with missing prices. Useful for creating DataFrame of prices all starting
+                           on the date for which all tickers have a price. If False, securities with not enough price
+                           data will have their NaN values backfilled using the first available price.
     :return: (pd.DataFrame) Dataframe of daily asset prices as a time series.
     """
     tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
     if api_source == 'yfinance':
-        prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close'].dropna()
+        prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
         if isinstance(prices, pd.Series):
             prices = prices.to_frame()
     elif api_source == 'bloomberg':
         mgr = dm.BbgDataManager()
-        prices = mgr[tickers].get_historical('PX_LAST', start_date, end_date, 'DAILY').fillna(method='ffill').dropna()
+        prices = mgr[tickers].get_historical('PX_LAST', start_date, end_date, 'DAILY').fillna(method='ffill')
         prices = prices.reindex(sorted(prices.columns), axis=1)
         prices.columns = [ticker.replace(' {} {}'.format(country_code, asset_class_code), '') for ticker in prices.columns]
+    else: raise ValueError('api_source must be set to either yfinance or bloomberg')
+    if dropna==True:
+        prices = prices.dropna()
     else:
-        raise ValueError('api_source must be set to either yfinance or bloomberg')
+        prices = prices.bfill()
     return prices.round(4)
 
 
@@ -71,15 +79,17 @@ def risk_free_rate(start_date, end_date, api_source='yfinance'):
 
 def current_equity_data(
         tickers, info, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False,
-        start_date=None, end_date=None, restricted=False
+        start_date=None, end_date=None, market_data_override=None, calc_interval=None,
+        restricted=False
 ):
     """
     Downloads point-in-time data. For example, you can download the current price or fundamental data like the PE
     ratio. You can only download available data for one ticker at a time if api_source is yfinance. You can download
     current point-in-time data for as many tickers as you want if your api_source is bloomberg.
 
-    :param tickers: (list) List of tickers. You can only look up one ticker at a time if api_source is yfinance. You can
-                           look up as many tickers as you want if api_source is bloomberg. Example: ['SPY', 'AGG', 'GLD']
+    :param tickers: (list or str) List of tickers or string of single ticker. You can only look up one ticker at a time
+                                  if api_source is yfinance. You can look up as many tickers as you want if api_source
+                                  is bloomberg. Example: ['SPY', 'AGG', 'GLD']
     :param info: (list) List of information to lookup. Also called mnemonics on the Bloomberg terminal.
     :param get_list: (boolean) If True, the function will only display a dictionary of available information from yfinance.
                                The keys this dictionary are what the info parameter of this function uses to look up
@@ -91,10 +101,28 @@ def current_equity_data(
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
     :param start_date: (str) Start date string or datetime. Date format must be 'YYYY-MM-DD'.
     :param end_date: (str) End date string or datetime. Date format must be 'YYYY-MM-DD'.
+    :param market_data_override: (str) Type of market data used in the calculation. Any historical field can be used for
+                                       this override. Use FLDS function on the Bloomberg Terminal to lookup fields.
+    :param calc_interval: (str) Number and type of period that contains the data for the override's calculation. This
+                                field accepts overrides in a "number/period" format. Numbers may consist of any integer.
+                                Period consists of d(day), w(week), m(month), q(quarter), s(semi-annual), and y(year).
+                                Fifteen month would be entered as "15m" to override correctly. In addition, users can
+                                set the override to WTD (week to date), MTD (month to date), YTD (year to date), FWTD
+                                (first day of week to date), FMTD (first day of month to date), FYTD ( first day of
+                                year to date).
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :return: (str) Returns the current point-in-time data as specified in the info parameter for the requested tickers.
     """
     tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
     if api_source == 'yfinance':
+        if isinstance(tickers, str):
+            if len([tickers]) != 1:
+                raise ValueError(
+                    'yfinance api only allows one ticker at a time. Check your ticker list to ensure it contains only one ticker.')
+        else:
+            if len(tickers) != 1:
+                raise ValueError(
+                    'yfinance api only allows one ticker at a time. Check your ticker list to ensure it contains only one ticker.')
         if get_list==True:
             print(yf.Ticker(tickers).info)
         else:
@@ -106,7 +134,11 @@ def current_equity_data(
             return df
     elif api_source == 'bloomberg':
         df = LocalTerminal.get_reference_data(
-            tickers, info, CUST_TRR_START_DT=start_date, CUST_TRR_END_DT=end_date,
+            tickers, info,
+            CUST_TRR_START_DT=start_date,
+            CUST_TRR_END_DT=end_date,
+            MARKET_DATA_OVERRIDE=market_data_override,
+            CALC_INTERVAL=calc_interval,
             ignore_field_error=1, ignore_security_error=1).as_frame()
         df.index.name = 'TICKER'
         return df

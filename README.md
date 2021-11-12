@@ -3,6 +3,7 @@
 
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
@@ -16,7 +17,7 @@ PyFinanceLab is in pre-alpha development. Please open an issue if you find any b
 	 The data API wrapper makes it easy to switch between [yfinance](https://github.com/ranaroussi/yfinance) (free to use) and [tia](https://github.com/PaulMest/tia) ([Bloomberg Professional Services](https://www.bloomberg.com/professional/) subscription) Python libraries for pulling financial data. 
 
 * **Portfolio Optimization**
-	Compute an efficient frontier of portfolios based on any one of 16 risk models and 6 return models from Hudson & Thame's [PortfolioLab](https://hudsonthames.org/portfoliolab/) or [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) libraries. 
+	Compute an efficient frontier of portfolios based on any one of 7 risk models and 3 return models from [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) libraries. 
 
 * **Optimizer Backtest**
 	Backtest optimized portfolios and compute performance charts, efficient frontier plots, and performance statistics. 
@@ -44,7 +45,7 @@ conda activate pyfinlab
 
 Install the following pip packages. 
 ```
-pip install portfoliolab yfinance tqdm pyfinlab openpyxl patsy openpyxl bt
+pip install yfinance tqdm pyfinlab openpyxl patsy openpyxl bt
 ```
 
 Install the following GitHub repositories one at a time. 
@@ -64,7 +65,7 @@ Install the following conda packages using anaconda channel.
 ```
 conda install -c anaconda xlsxwriter statsmodels
 ```
-If you get an error, please open an issue. 
+If you get an error installing any of the packages, try to install the problematic package separately. If you continue to have any problems, please open an issue. 
 
 
 ## Roadmap

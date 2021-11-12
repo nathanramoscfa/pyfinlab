@@ -6,7 +6,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='pyfinlab',  # Required
-    version='0.0.22',  # Required
+    version='0.0.24',  # Required
     description='Financial applications for portfolio management',  # Optional
     long_description=long_description,  # Optional
     long_description_content_type='text/markdown',  # Optional (see note above)
@@ -30,7 +30,6 @@ setup(
     python_requires='>=3.7',
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/nathanramoscfa/pyfinlab/issues',
-        'Ethereum donation': 'https://etherscan.io/address/0x5679291c949069A05E4d82A4dB24ba0200c91B20',
         'Source': 'https://github.com/nathanramoscfa/pyfinlab',
     },
 )

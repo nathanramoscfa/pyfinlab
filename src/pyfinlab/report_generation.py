@@ -107,7 +107,7 @@ def generate_excel_report(
     worksheet1.hide_gridlines()
     worksheet1.set_zoom(110)
     worksheet1.set_column('A:A', 22, format1)
-    worksheet1.set_column('B:U', 7, format1)
+    worksheet1.set_column('B:U', 7.5, format1)
     worksheet1.set_row(1, None, format4)
     worksheet1.set_row(2, None, format5)
     worksheet1.set_row(3, None, format3)

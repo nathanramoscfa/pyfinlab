@@ -73,6 +73,11 @@ inputs = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_n
 mapping = inputs.get('mapping').sort_values(by='TICKER').dropna(how='all').fillna('')
 tickers = list(mapping.TICKER.values)
 classification = mapping.iloc[:, :11].set_index('TICKER')
+classification = classification.replace({
+    'Non-Equity': '',
+    'Non-Specified': '',
+    'Non-Fixed Income': ''
+})
 groups = list(classification.columns[1:])
 
 
@@ -103,7 +108,7 @@ def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', 
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
     if restricted == True:
-        restricted_list = pd.read_csv('../data/restricted_securities.csv', header=2)[
+        restricted_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='restricted')[
             ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
         if api_source == 'bloomberg':
             restricted_list['Symbol'] = restricted_list['Symbol'] + ' US Equity'
@@ -128,7 +133,7 @@ def constraints(cov_matrix, restricted=False):
     """
     bounds = mapping[['TICKER', 'MIN', 'MAX']]
     if restricted == True:
-        restricted_list = pd.read_csv('../data/restricted_securities.csv', header=2)[
+        restricted_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='restricted')[
             ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
         restricted_tickers = list(restricted_list.Symbol)
         bounds = bounds[~bounds['TICKER'].isin(restricted_tickers)]
@@ -225,6 +230,8 @@ def constraints(cov_matrix, restricted=False):
                 value[key], growth[key], blend[key] = 0, 1, 0
             elif value.get(key) == 'Blend':
                 value[key], growth[key], blend[key] = 0, 0, 1
+            elif value.get(key) == 'Non-Equity':
+                value[key], growth[key], blend[key] = 0, 0, 0
             elif str(value.get(key)) == '':
                 value[key], growth[key], blend[key] = 0, 0, 0
             else:
@@ -247,6 +254,8 @@ def constraints(cov_matrix, restricted=False):
             elif broadmkt.get(key) == 'Mid-cap':
                 broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 1, 0
             elif broadmkt.get(key) == 'Small-cap':
+                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 1
+            elif broadmkt.get(key) == 'Non-Equity':
                 broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 1
             elif str(broadmkt.get(key)) == '':
                 broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 0
@@ -276,9 +285,9 @@ def optimize_portfolio(
         risk_model='sample_cov',
         return_model='avg_historical_return',
         obj_function='max_sharpe',
-        target_volatility=0.01, target_return=0.2,
+        target_volatility=0.4, target_return=0.2,
         risk_free_rate=0.02, risk_aversion=1, market_neutral=False,
-        restricted=False, gamma=0.0
+        restricted=False, gamma=0.0, add_custom_constraints=False
 ):
     """
     Compute the optimal portfolio.
@@ -304,6 +313,7 @@ def optimize_portfolio(
     :param market_neutral: (bool) Optional, if weights are allowed to be negative (i.e. short). Defaults to False.
     :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
+    :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (tuple) Tuple of weightings (pd.DataFrame) and results (pd.DataFrame) showing risk, return, sharpe ratio
                      metrics.
     """
@@ -338,10 +348,13 @@ def optimize_portfolio(
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
 
-    # Add Custom Sector Constraints
-    ef.add_constraint(lambda w: w @ growth <= w @ value)
-    ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
-    ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
+    # Add Custom Constraints
+    if add_custom_constraints==True:
+        ef.add_constraint(lambda w: w @ growth <= w @ value)
+        ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
+        ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
+    else:
+        pass
 
     # Objective Function
     if obj_function=='min_volatility':
@@ -453,7 +466,7 @@ def max_risk(
 
 
 def compute_efficient_frontier(
-        exp_returns, cov_matrix, risk_model, return_model, restricted=False, gamma=0.0):
+        exp_returns, cov_matrix, risk_model, return_model, restricted=False, gamma=0.0, add_custom_constraints=False):
     """
     Computes 20 efficient frontier portfolios.
 
@@ -467,6 +480,7 @@ def compute_efficient_frontier(
                                'avg_historical_return'.
     :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
+    :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (tuple) Tuple of pd.DataFrames representing the optimized portfolio weightings and ex-ante risk, return,
                      and Sharpe ratio.
     """
@@ -485,7 +499,8 @@ def compute_efficient_frontier(
             risk_model, return_model,
             obj_function='efficient_risk',
             target_volatility=i,
-            restricted=restricted, gamma=gamma
+            restricted=restricted, gamma=gamma,
+            add_custom_constraints=add_custom_constraints
         )
         cash_weighting = optimized_portfolio[int(1)]
         cash_weighting.name = counter
@@ -496,7 +511,8 @@ def compute_efficient_frontier(
         counter += 1
     results.index.name = 'efficient_frontier'
     cash_weightings.fillna(0, inplace=True)
-    optimized_portfolios = pd.concat([classification, cash_weightings], axis=1).fillna(0)
+    # classification_schema = classification_schema().rename(columns={'SymbolCusip': 'TICKER'}).set_index('TICKER')
+    optimized_portfolios = classification.join(cash_weightings, how='inner')
     return optimized_portfolios, results
 
 
@@ -699,7 +715,7 @@ def eff_frontier_plot(cov_matrix, exp_returns, results, figsize=(12, 6), save=Fa
 def monte_carlo_frontier(
         cov_matrix, exp_returns,
         figsize=(11, 5),
-        save=False, show=True, restricted=False, gamma=0.0):
+        save=False, show=True, restricted=False, gamma=0.0, add_custom_constraints=False):
     """
     Plots the efficient frontier and individual assets.
 
@@ -713,6 +729,7 @@ def monte_carlo_frontier(
     :param show: (bool) Optional, displays plot. Defaults to True.
     :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
+    :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (fig) Plot of efficient frontier and individual assets.
     """
     (
@@ -735,9 +752,12 @@ def monte_carlo_frontier(
     ef.add_sector_constraints(type_mapper, type_lower, type_upper)
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
-    ef.add_constraint(lambda w: w @ growth <= w @ value)
-    ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
-    ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
+    if add_custom_constraints==True:
+        ef.add_constraint(lambda w: w @ growth <= w @ value)
+        ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
+        ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
+    else:
+        pass
     plotting.plot_efficient_frontier(ef, ax=ax, show_assets=False)
     ax.get_lines()[0].set_color("black")
     ax.get_lines()[0].set_linewidth(2.0)

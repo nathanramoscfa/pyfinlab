@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from pyfinlab import data_api as api
-np.seterr(divide='ignore')
 
 """
 These functions backtest the efficient frontier portfolios.  
@@ -98,6 +97,7 @@ def run_backtest(backtests, benchmark):
     :param benchmark: (list) Backtest object for the benchmark_strategy.
     :return: (obj) Result object containing backtest results.
     """
+    np.seterr(divide='ignore')
     return bt.run(
         backtests[0], backtests[1], backtests[2], backtests[3], backtests[4],
         backtests[5], backtests[6], backtests[7], backtests[8], backtests[9],
@@ -107,7 +107,7 @@ def run_backtest(backtests, benchmark):
     )
 
 
-def linechart(Results, title='backtests', figsize=(15, 9), save=False, show=True, colormap='jet'):
+def linechart(Results, title='Backtest Results', figsize=(15, 9), save=False, show=True, colormap='jet'):
     """
     Plots the performance for all efficient frontier portfolios.
 
