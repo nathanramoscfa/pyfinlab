@@ -55,7 +55,7 @@ conda install -c anaconda xlsxwriter statsmodels
 
 Install the following packages using pip. 
 ```
-pip install --upgrade-strategy only-if-needed yfinance tqdm pyfinlab openpyxl patsy openpyxl bt
+pip install --upgrade-strategy only-if-needed yfinance tqdm pyfinlab openpyxl patsy openpyxl bt PyPortfolioOpt
 ```
 
 Install the following GitHub repositories one at a time. 
