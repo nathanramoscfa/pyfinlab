@@ -60,10 +60,10 @@ pip install --upgrade-strategy only-if-needed yfinance tqdm pyfinlab openpyxl pa
 
 Install the following GitHub repositories one at a time. 
 ```
-pip install --upgrade-strategy only-if-needed git+https://github.com/PaulMest/tia.git#egg=tia
+pip install git+https://github.com/PaulMest/tia.git#egg=tia
 ```
 ```
-pip install --upgrade-strategy only-if-needed git+https://github.com/nathanramoscfa/ffn.git
+pip install git+https://github.com/nathanramoscfa/ffn.git
 ``` 
 
 
