@@ -28,7 +28,7 @@ PyFinanceLab is in pre-alpha development. Please open an issue if you find any b
 
 ## Installation
 
-PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation process. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. Make sure you have installed [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installed on your computer. If you encounter any errors with, "Microsoft Visual C++ 14.0 is required", try following [these instructions](https://stackoverflow.com/a/55370133/16367225) to download and install Microsoft Visual C++ 14.0. Open an issue if you need help. 
+PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation process. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. Make sure you have installed [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installed on your computer. If you encounter any errors with, "Microsoft Visual C++ 14.0 is required", try following [these instructions](https://stackoverflow.com/a/55370133/16367225) to download and install Microsoft Visual C++ 14.0. If you get an error installing any of the packages, try to install the problematic package separately. If you have any installation problems, please open an issue. 
 
 
 ### Windows Instructions
@@ -43,19 +43,6 @@ Activate the new pyfinlab environment.
 conda activate pyfinlab
 ```
 
-Install the following pip packages. 
-```
-pip install yfinance tqdm pyfinlab openpyxl patsy openpyxl bt
-```
-
-Install the following GitHub repositories one at a time. 
-```
-pip install git+https://github.com/PaulMest/tia.git#egg=tia
-```
-```
-pip install git+https://github.com/nathanramoscfa/ffn.git
-```
-
 Install the following conda packages using conda-forge channel. 
 ```
 conda install -c conda-forge blpapi jupyterlab xlsxwriter tqdm
@@ -65,7 +52,19 @@ Install the following conda packages using anaconda channel.
 ```
 conda install -c anaconda xlsxwriter statsmodels
 ```
-If you get an error installing any of the packages, try to install the problematic package separately. If you continue to have any problems, please open an issue. 
+
+Install the following packages using pip. 
+```
+pip install --upgrade-strategy only-if-needed yfinance tqdm pyfinlab openpyxl patsy openpyxl bt PyPortfolioOpt
+```
+
+Install the following GitHub repositories one at a time. 
+```
+pip install --upgrade-strategy only-if-needed git+https://github.com/PaulMest/tia.git#egg=tia
+```
+```
+pip install --upgrade-strategy only-if-needed git+https://github.com/nathanramoscfa/ffn.git
+``` 
 
 
 ## Roadmap
