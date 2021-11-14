@@ -28,35 +28,12 @@ Available risk models:
         - 'ledoit_wolf_constant_correlation',
         - 'oracle_approximating'
         
-    PortfolioLab
-        - 'sample_covariance',
-        - 'minimum_covariance_determinant',
-        - 'empirical_covariance',
-        - 'shrinked_covariance_basic',
-        - 'shrinked_covariance_lw',
-        - 'shrinked_covariance_oas',
-        - 'semi_covariance',
-        - 'exponential_covariance',
-        - 'constant_residual_eigenvalues_denoised',
-        - 'constant_residual_spectral_denoised',
-        - 'targeted_shrinkage_denoised',
-        - 'targeted_shrinkage_detoned',
-        - 'constant_residual_detoned',
-        - 'hierarchical_filtered_complete',
-        - 'hierarchical_filtered_single',
-        - 'hierarchical_filtered_avg'
-        
 Available return models:
 
     PyPortfolioOpt
         - 'avg_historical_return',
         - 'ema_historical_return',
         - 'capm_return'
-        
-    PortfolioLab
-        - 'simple_return',
-        - 'mean_historical_return',
-        - 'exponential_historical_return',
         
 Available objective functions:
 
@@ -115,7 +92,7 @@ def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', 
         else:
             pass
         restricted_tickers = list(restricted_list.Symbol)
-        tickers = tickers[~tickers['TICKER'].isin(restricted_tickers)].squeeze()
+        tickers = [x for x in tickers if x not in restricted_tickers]
     else:
         pass
     tickers = tickers.squeeze() if isinstance(tickers, pd.DataFrame) else tickers

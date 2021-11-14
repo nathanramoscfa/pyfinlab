@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from portfoliolab.estimators import ReturnsEstimators
 from pypfopt import expected_returns
 
 """
