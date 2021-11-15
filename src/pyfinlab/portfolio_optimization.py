@@ -19,7 +19,6 @@ Available risk and return models used to compute cov_matrix come from either PyP
 
 Available risk models:
 
-    PyPortfolioOpt
         - 'sample_cov',
         - 'semicovariance',
         - 'exp_cov',
@@ -30,14 +29,12 @@ Available risk models:
         
 Available return models:
 
-    PyPortfolioOpt
         - 'avg_historical_return',
         - 'ema_historical_return',
         - 'capm_return'
         
 Available objective functions:
 
-        PyPortfolioOpt
             - 'min_volatility',
             - 'max_sharpe',
             - 'max_quadratic_utility'
@@ -82,6 +79,7 @@ def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', 
             tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + country_code + ' ' + asset_class_code
         else:
             tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + asset_class_code
+        tickers = tickers.squeeze()
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
     if restricted == True:

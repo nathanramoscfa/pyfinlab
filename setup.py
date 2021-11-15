@@ -6,7 +6,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='pyfinlab',  # Required
-    version='0.0.26',  # Required
+    version='0.0.27',  # Required
     description='Financial applications for portfolio management',  # Optional
     long_description=long_description,  # Optional
     long_description_content_type='text/markdown',  # Optional (see note above)
@@ -21,7 +21,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Topic :: Office/Business :: Financial :: Investment',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
     ],
     keywords='python, finance, portfolio-optimization, quantitative-finance, portfolio-management',  # Optional

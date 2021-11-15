@@ -12,6 +12,7 @@ def vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=Fa
     :param tickers: (list) List of tickers. Example: ['SPY', 'AGG', 'GLD']
     :param threshold: (float or int) Limit by which the variance inflation factor cannot exceed. Assets with a
                                      variance inflation factor above this number will be omitted from the assets.
+    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
     :return: (pd.DataFrame) Returns DataFrame of assets whose variance inflation factor is below the threshold.
     """
     start_date, end_date = api.start_end_dates(num_years, api_source)

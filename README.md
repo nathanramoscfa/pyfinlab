@@ -4,11 +4,12 @@
 
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
 
-PyFinanceLab is in pre-alpha development. Please open an issue if you find any bugs. 
+PyFinanceLab is in pre-alpha development. 
 
 
 ## Features
@@ -28,10 +29,9 @@ PyFinanceLab is in pre-alpha development. Please open an issue if you find any b
 
 ## Installation
 
-PyFinanceLab comes with many dependencies. It is recommended you use Anaconda for this installation process. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. Make sure you have installed [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installed on your computer. If you encounter any errors with, "Microsoft Visual C++ 14.0 is required", try following [these instructions](https://stackoverflow.com/a/55370133/16367225) to download and install Microsoft Visual C++ 14.0. If you get an error installing any of the packages, try to install the problematic package separately. If you have any installation problems, please open an issue. 
+It is recommended you use Anaconda for this installation process. [Anaconda Individual Edition](https://www.anaconda.com/products/individual) is appropriate for most users. Make sure you have installed [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installed on your computer. If you encounter any errors with, "Microsoft Visual C++ 14.0 is required", try following [these instructions](https://stackoverflow.com/a/55370133/16367225) to download and install Microsoft Visual C++ 14.0. If you get an error installing any of the packages below, try to install the problematic package separately. 
 
-
-### Windows Instructions
+### Setting Up Anaconda Environment for PyFinLab
 
 Open Anaconda Prompt and create a new environment called pyfinlab. 
 ```
@@ -52,18 +52,26 @@ Install the following conda packages using anaconda channel.
 ```
 conda install -c anaconda xlsxwriter statsmodels
 ```
-
-Install the following packages using pip. 
-```
-pip install --upgrade-strategy only-if-needed yfinance tqdm pyfinlab openpyxl patsy openpyxl bt PyPortfolioOpt
-```
-
 Install the following GitHub repositories one at a time. 
 ```
 pip install git+https://github.com/PaulMest/tia.git#egg=tia
 ```
 ```
 pip install git+https://github.com/nathanramoscfa/ffn.git
+``` 
+Install the following packages using pip. 
+```
+pip install --upgrade-strategy only-if-needed yfinance tqdm openpyxl patsy openpyxl bt PyPortfolioOpt
+```
+### Installing PyFinLab
+
+You can either install pyfinlab to your environment's site-packages folder with the following command. 
+```
+pip install pyfinlab
+``` 
+Or you can clone the GitHub repository to a project directory of your choosing. 
+```
+git clone git+https://github.com/nathanramoscfa/pyfinlab.git
 ``` 
 
 
