@@ -21,7 +21,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Topic :: Office/Business :: Financial :: Investment',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: BSD License',
         'Programming Language :: Python :: 3',
     ],
     keywords='python, finance, portfolio-optimization, quantitative-finance, portfolio-management',  # Optional
