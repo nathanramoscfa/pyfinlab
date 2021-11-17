@@ -63,13 +63,15 @@ Install the following packages using pip.
 ```
 pip install --upgrade-strategy only-if-needed yfinance tqdm openpyxl patsy openpyxl bt PyPortfolioOpt
 ```
+
+
 ### Installing PyFinLab
 
-You can either install pyfinlab to your environment's site-packages folder with the following command. 
+Install pyfinlab to your environment's site-packages folder with the following command. 
 ```
 pip install pyfinlab
 ``` 
-Or you can clone the GitHub repository to a project directory of your choosing. 
+Clone the GitHub repository to a project directory of your choosing. 
 ```
 git clone git+https://github.com/nathanramoscfa/pyfinlab.git
 ``` 
