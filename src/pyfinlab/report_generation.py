@@ -209,15 +209,13 @@ def generate_excel_report(
 
     # efficient_frontier
     worksheet6.hide_gridlines()
-    worksheet6.set_column('A:AH', None, format1)
+    worksheet6.set_column('A:Q', None, format1)
     for row in range(1, 35):
         worksheet6.write('A{}'.format(row), ' ')
     worksheet6.set_default_row(hide_unused_rows=True)
-    worksheet6.set_column('AI:XFD', None, None, {'hidden': True})
+    worksheet6.set_column('R:XFD', None, None, {'hidden': True})
     worksheet6.insert_image(
-        'A1', '../charts/monte_carlo_frontier_{}.png'.format(datetime.today().strftime('%m-%d-%Y')))
-    worksheet6.insert_image(
-        'R1', '../charts/efficient_frontier_{}.png'.format(datetime.today().strftime('%m-%d-%Y')))
+        'A1', '../charts/efficient_frontier_{}.png'.format(datetime.today().strftime('%m-%d-%Y')))
 
     # vol
     worksheet9.hide_gridlines()

@@ -14,7 +14,7 @@ subscription).
 
 def price_history(
         tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity',
-        restricted=False, dropna=True
+        restricted=False, banned=False, dropna=True
 ):
     """
     Downloads price history data into a pd.DataFrame.
@@ -31,13 +31,14 @@ def price_history(
                                Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param dropna: (bool): Optional, removes rows with missing prices. Useful for creating DataFrame of prices all starting
                            on the date for which all tickers have a price. If False, securities with not enough price
                            data will have their NaN values backfilled using the first available price.
     :return: (pd.DataFrame) Dataframe of daily asset prices as a time series.
     """
-    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
+    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted, banned)
     if api_source == 'yfinance':
         prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
         if isinstance(prices, pd.Series):
@@ -78,9 +79,9 @@ def risk_free_rate(start_date, end_date, api_source='yfinance'):
 
 
 def current_equity_data(
-        tickers, info, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False,
+        tickers, info=None, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False,
         start_date=None, end_date=None, market_data_override=None, calc_interval=None,
-        restricted=False
+        restricted=False, banned=False
 ):
     """
     Downloads point-in-time data. For example, you can download the current price or fundamental data like the PE
@@ -111,9 +112,10 @@ def current_equity_data(
                                 (first day of week to date), FMTD (first day of month to date), FYTD ( first day of
                                 year to date).
     :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :return: (str) Returns the current point-in-time data as specified in the info parameter for the requested tickers.
     """
-    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted)
+    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted, banned)
     if api_source == 'yfinance':
         if isinstance(tickers, str):
             if len([tickers]) != 1:
@@ -124,7 +126,7 @@ def current_equity_data(
                 raise ValueError(
                     'yfinance api only allows one ticker at a time. Check your ticker list to ensure it contains only one ticker.')
         if get_list==True:
-            print(yf.Ticker(tickers).info)
+            return yf.Ticker(tickers).info
         else:
             df = yf.Ticker(tickers).info
             df = pd.DataFrame.from_dict(

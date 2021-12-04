@@ -55,7 +55,7 @@ classification = classification.replace({
 groups = list(classification.columns[1:])
 
 
-def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', restricted=False):
+def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', restricted=False, banned=False):
     """
     Converts tickers to the proper format depending on whether api_source is 'yfinance' or 'bloomberg'.
 
@@ -65,7 +65,8 @@ def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', 
                                Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :return: (list) List of formatted tickers.
     """
     if api_source == 'yfinance':
@@ -84,26 +85,36 @@ def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', 
         raise ValueError('api_source must be set to either yfinance or bloomberg')
     if restricted == True:
         restricted_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='restricted')[
-            ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
+            ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates(subset=['Symbol'])
         if api_source == 'bloomberg':
             restricted_list['Symbol'] = restricted_list['Symbol'] + ' US Equity'
         else:
             pass
         restricted_tickers = list(restricted_list.Symbol)
         tickers = [x for x in tickers if x not in restricted_tickers]
+    if banned == True:
+        banned_tickers = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='banned')[
+            ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates()
+        if api_source == 'bloomberg':
+            banned_tickers['Symbol'] = banned_tickers['Symbol'] + ' US Equity'
+        else:
+            pass
+        banned_tickers = list(banned_tickers.Symbol)
+        tickers = [x for x in tickers if x not in banned_tickers]
     else:
         pass
     tickers = tickers.squeeze() if isinstance(tickers, pd.DataFrame) else tickers
     return tickers
 
 
-def constraints(cov_matrix, restricted=False):
+def constraints(cov_matrix, restricted=False, banned=False):
     """
     Returns dictionaries and tuples of ticker and sector-level constraints which are then input into the
     optimize_portfolio() function.
 
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :return: (tuple) Returns tuple of ticker-level constraints as a list and sector-level constraints as tuples.
     """
     bounds = mapping[['TICKER', 'MIN', 'MAX']]
@@ -112,8 +123,11 @@ def constraints(cov_matrix, restricted=False):
             ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
         restricted_tickers = list(restricted_list.Symbol)
         bounds = bounds[~bounds['TICKER'].isin(restricted_tickers)]
-    else:
-        pass
+    if banned == True:
+        banned_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='banned')[
+            ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates(subset=['Symbol'])
+        banned_list = list(banned_list.Symbol)
+        bounds = bounds[~bounds['TICKER'].isin(banned_list)]
     keys = list(bounds.TICKER.values)
     bounds = bounds[bounds['TICKER'].isin(cov_matrix.index)].drop_duplicates()
     bounds = [tuple(x) for x in bounds[['MIN', 'MAX']].to_numpy()]
@@ -216,34 +230,91 @@ def constraints(cov_matrix, restricted=False):
         blend = list(blend.values())
         return value, growth, blend
 
-    def size_constraint(size_mapper):
-        broadmkt = dict(sorted(size_mapper.copy().items()))
-        largecap = dict(sorted(size_mapper.copy().items()))
-        midcap = dict(sorted(size_mapper.copy().items()))
-        smallcap = dict(sorted(size_mapper.copy().items()))
-        for key in broadmkt:
-            if broadmkt.get(key) == 'Broad Market':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 1, 0, 0, 0
-            elif broadmkt.get(key) == 'Large-cap':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 1, 0, 0
-            elif broadmkt.get(key) == 'Mid-cap':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 1, 0
-            elif broadmkt.get(key) == 'Small-cap':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 1
-            elif broadmkt.get(key) == 'Non-Equity':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 1
-            elif str(broadmkt.get(key)) == '':
-                broadmkt[key], largecap[key], midcap[key], smallcap[key] = 0, 0, 0, 0
+    def size_constraint(size_mapper, type_mapper):
+        sec_type = dict(sorted(type_mapper.copy().items()))
+        broadmkt_etp = dict(sorted(size_mapper.copy().items()))
+        largecap_etp = dict(sorted(size_mapper.copy().items()))
+        midcap_etp = dict(sorted(size_mapper.copy().items()))
+        smallcap_etp = dict(sorted(size_mapper.copy().items()))
+        largecap_stock = dict(sorted(size_mapper.copy().items()))
+        midcap_stock = dict(sorted(size_mapper.copy().items()))
+        smallcap_stock = dict(sorted(size_mapper.copy().items()))
+        for key in sec_type:
+            if (broadmkt_etp.get(key) == 'Broad Market') & (sec_type.get(key) == 'ETP'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 1, 1, 0, 0, 0, 0, 0
+            elif (broadmkt_etp.get(key) == 'Large-cap') & (sec_type.get(key) == 'ETP'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 1, 0, 0, 0, 0, 0
+            elif (broadmkt_etp.get(key) == 'Mid-cap') & (sec_type.get(key) == 'ETP'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 1, 0, 0, 0, 0
+            elif (broadmkt_etp.get(key) == 'Small-cap') & (sec_type.get(key) == 'ETP'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 0, 1, 0, 0, 0
+            elif (broadmkt_etp.get(key) == 'Large-cap') & (sec_type.get(key) == 'Common Stock'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 0, 0, 1, 0, 0
+            elif (broadmkt_etp.get(key) == 'Mid-cap') & (sec_type.get(key) == 'Common Stock'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 0, 0, 0, 1, 0
+            elif (broadmkt_etp.get(key) == 'Small-cap') & (sec_type.get(key) == 'Common Stock'):
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 0, 0, 0, 0, 1
             else:
-                pass
-        broadmkt = list(broadmkt.values())
-        largecap = list(largecap.values())
-        midcap = list(midcap.values())
-        smallcap = list(smallcap.values())
-        return broadmkt, largecap, midcap, smallcap
+                broadmkt_etp[key], largecap_etp[key], midcap_etp[key], smallcap_etp[key], largecap_stock[key], \
+                midcap_stock[key], smallcap_stock[key] = 0, 0, 0, 0, 0, 0, 0
+        broadmkt_etp = list(broadmkt_etp.values())
+        largecap_etp = list(largecap_etp.values())
+        midcap_etp = list(midcap_etp.values())
+        smallcap_etp = list(smallcap_etp.values())
+        largecap_stock = list(largecap_stock.values())
+        midcap_stock = list(midcap_stock.values())
+        smallcap_stock = list(smallcap_stock.values())
+        return broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock
+
+    def type_constraint(asset_mapper, type_mapper):
+        sec_type = dict(sorted(type_mapper.copy().items()))
+        equity_etp = dict(sorted(asset_mapper.copy().items()))
+        equity_stock = dict(sorted(asset_mapper.copy().items()))
+        for key in sec_type:
+            if (equity_etp.get(key) == 'Equity') & (sec_type.get(key) == 'ETP'):
+                equity_etp[key], equity_stock[key] = 1, 0
+            elif (equity_stock.get(key) == 'Equity') & (sec_type.get(key) == 'Common Stock'):
+                equity_etp[key], equity_stock[key] = 0, 1
+            else:
+                equity_etp[key], equity_stock[key] = 0, 0
+        equity_etp = list(equity_etp.values())
+        equity_stock = list(equity_stock.values())
+        return equity_etp, equity_stock
+
+    def region_constraint(region_mapper):
+        region_dict = dict(sorted(region_mapper.copy().items()))
+        usa_global = dict(sorted(region_mapper.copy().items()))
+        developed = dict(sorted(region_mapper.copy().items()))
+        emerging = dict(sorted(region_mapper.copy().items()))
+        for key in region_dict:
+            if region_dict.get(key) == 'U.S.':
+                usa_global[key], developed[key], emerging[key] = 1, 0, 0
+            elif region_dict.get(key) == 'Global':
+                usa_global[key], developed[key], emerging[key] = 1, 0, 0
+            elif region_dict.get(key) == 'Developed Markets':
+                usa_global[key], developed[key], emerging[key] = 0, 1, 0
+            elif region_dict.get(key) == 'Emerging Markets':
+                usa_global[key], developed[key], emerging[key] = 0, 0, 1
+            elif region_dict.get(key) == 'Emerging Markets Local Currency':
+                usa_global[key], developed[key], emerging[key] = 0, 0, 1
+            else:
+                usa_global[key], developed[key], emerging[key] = 0, 0, 0
+        usa_global = list(usa_global.values())
+        developed = list(developed.values())
+        emerging = list(emerging.values())
+        return usa_global, developed, emerging
 
     value, growth, blend = style_constraint(style_mapper)
-    broadmkt, largecap, midcap, smallcap = size_constraint(size_mapper)
+    equity_etp, equity_stock = type_constraint(asset_mapper, type_mapper)
+    broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock = size_constraint(size_mapper, type_mapper)
+    usa_global, developed, emerging = region_constraint(region_mapper)
 
     return (
         bounds,
@@ -251,7 +322,9 @@ def constraints(cov_matrix, restricted=False):
         style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
         duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
         type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, equity_etp, equity_stock,
+        broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock,
+        usa_global, developed, emerging
     )
 
 
@@ -262,7 +335,7 @@ def optimize_portfolio(
         obj_function='max_sharpe',
         target_volatility=0.4, target_return=0.2,
         risk_free_rate=0.02, risk_aversion=1, market_neutral=False,
-        restricted=False, gamma=0.0, add_custom_constraints=False
+        restricted=False, banned=False, gamma=0.0, add_custom_constraints=False
 ):
     """
     Compute the optimal portfolio.
@@ -286,7 +359,8 @@ def optimize_portfolio(
     :param risk_aversion: (positive float) Optional, risk aversion parameter (must be greater than 0). Required if
                                            objective function is 'max_quadratic_utility'. Defaults to 1.
     :param market_neutral: (bool) Optional, if weights are allowed to be negative (i.e. short). Defaults to False.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (tuple) Tuple of weightings (pd.DataFrame) and results (pd.DataFrame) showing risk, return, sharpe ratio
@@ -299,8 +373,10 @@ def optimize_portfolio(
         style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
         duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
         type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
-    ) = constraints(cov_matrix, restricted)
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, equity_etp, equity_stock,
+        broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock,
+        usa_global, developed, emerging
+    ) = constraints(cov_matrix, restricted, banned)
 
     # Empty DataFrames
     weightings = pd.DataFrame()
@@ -325,11 +401,14 @@ def optimize_portfolio(
 
     # Add Custom Constraints
     if add_custom_constraints==True:
-        ef.add_constraint(lambda w: w @ growth <= w @ value)
-        ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
-        ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
-    else:
-        pass
+        ef.add_constraint(lambda w: w @ growth == w @ value)
+        ef.add_constraint(lambda w: w @ largecap_etp >= 2 * w @ midcap_etp)
+        ef.add_constraint(lambda w: w @ midcap_etp >= 2 * w @ smallcap_etp)
+        ef.add_constraint(lambda w: w @ largecap_stock >= 2 * w @ midcap_stock)
+        ef.add_constraint(lambda w: w @ midcap_stock >= 2 * w @ smallcap_stock)
+        ef.add_constraint(lambda w: w @ equity_etp >= 3 * w @ equity_stock)
+        ef.add_constraint(lambda w: w @ usa_global >= 2 * w @ developed)
+        ef.add_constraint(lambda w: w @ developed >= 2 * w @ emerging)
 
     # Objective Function
     if obj_function=='min_volatility':
@@ -441,7 +520,7 @@ def max_risk(
 
 
 def compute_efficient_frontier(
-        exp_returns, cov_matrix, risk_model, return_model, restricted=False, gamma=0.0, add_custom_constraints=False):
+        exp_returns, cov_matrix, risk_model, return_model, restricted=False, banned=False, gamma=0.0, add_custom_constraints=False):
     """
     Computes 20 efficient frontier portfolios.
 
@@ -453,7 +532,8 @@ def compute_efficient_frontier(
     :param return_model: (str) Optional, return model used to compute the exp_returns from either PyPortfolioOpt (free
                                open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
                                'avg_historical_return'.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (tuple) Tuple of pd.DataFrames representing the optimized portfolio weightings and ex-ante risk, return,
@@ -474,7 +554,7 @@ def compute_efficient_frontier(
             risk_model, return_model,
             obj_function='efficient_risk',
             target_volatility=i,
-            restricted=restricted, gamma=gamma,
+            restricted=restricted, banned=banned, gamma=gamma,
             add_custom_constraints=add_custom_constraints
         )
         cash_weighting = optimized_portfolio[int(1)]
@@ -690,7 +770,7 @@ def eff_frontier_plot(cov_matrix, exp_returns, results, figsize=(12, 6), save=Fa
 def monte_carlo_frontier(
         cov_matrix, exp_returns,
         figsize=(11, 5),
-        save=False, show=True, restricted=False, gamma=0.0, add_custom_constraints=False):
+        save=False, show=True, restricted=False, banned=False, gamma=0.0, add_custom_constraints=False):
     """
     Plots the efficient frontier and individual assets.
 
@@ -702,7 +782,8 @@ def monte_carlo_frontier(
                                    Defaults to (11, 5).
     :param save: (bool) Optional, width, height in inches. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
+    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
     :return: (fig) Plot of efficient frontier and individual assets.
@@ -713,8 +794,10 @@ def monte_carlo_frontier(
         style_lower, style_upper, style_mapper, credit_lower, credit_upper, credit_mapper,
         duration_lower, duration_upper, duration_mapper, asset_lower, asset_upper, asset_mapper,
         type_lower, type_upper, type_mapper, holding_lower, holding_upper, holding_mapper,
-        sector_lower, sector_upper, sector_mapper, value, growth, blend, broadmkt, largecap, midcap, smallcap
-    ) = constraints(cov_matrix, restricted)
+        sector_lower, sector_upper, sector_mapper, value, growth, blend, equity_etp, equity_stock,
+        broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock,
+        usa_global, developed, emerging
+    ) = constraints(cov_matrix, restricted, banned)
     fig, ax = plt.subplots(figsize=figsize)
     ef = efficient_frontier.EfficientFrontier(exp_returns, cov_matrix, bounds)
     ef.add_objective(objective_functions.L2_reg, gamma=gamma)
@@ -728,9 +811,14 @@ def monte_carlo_frontier(
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
     if add_custom_constraints==True:
-        ef.add_constraint(lambda w: w @ growth <= w @ value)
-        ef.add_constraint(lambda w: w @ largecap >= 2 * w @ midcap)
-        ef.add_constraint(lambda w: w @ midcap >= 2 * w @ smallcap)
+        ef.add_constraint(lambda w: w @ growth == w @ value)
+        ef.add_constraint(lambda w: w @ largecap_etp >= 2 * w @ midcap_etp)
+        ef.add_constraint(lambda w: w @ midcap_etp >= 2 * w @ smallcap_etp)
+        ef.add_constraint(lambda w: w @ largecap_stock >= 2 * w @ midcap_stock)
+        ef.add_constraint(lambda w: w @ midcap_stock >= 2 * w @ smallcap_stock)
+        ef.add_constraint(lambda w: w @ usa_global >= 2 * w @ developed)
+        ef.add_constraint(lambda w: w @ developed >= 2 * w @ emerging)
+        ef.add_constraint(lambda w: w @ equity_etp >= 3 * w @ equity_stock)
     else:
         pass
     plotting.plot_efficient_frontier(ef, ax=ax, show_assets=False)

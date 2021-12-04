@@ -5,6 +5,7 @@
 
 
 
+
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
@@ -19,6 +20,9 @@ PyFinanceLab is in pre-alpha development.
 
 * **Portfolio Optimization**
 	Compute an efficient frontier of portfolios based on any one of 7 risk models and 3 return models from the [PyPortfolioOpt](https://pyportfolioopt.readthedocs.io/en/latest/) library.
+
+* **Multifactor Scoring Model**
+	Analyze and rank stocks according to factors assumed to have excess returns and violate the efficient market hypothesis. 
 
 * **Optimizer Backtest**
 	Backtest optimized portfolios and compute performance charts, efficient frontier plots, and performance statistics. 
@@ -80,10 +84,6 @@ git clone git+https://github.com/nathanramoscfa/pyfinlab.git
 ## Roadmap
 
 Future development will include:
-
-* **Multifactor Scoring Model**
-
-    Analyze and rank every stock and ETF according to factors assumed to have excess returns and violate the efficient market hypothesis. 
     
 * **Documentation and Testing**
 
