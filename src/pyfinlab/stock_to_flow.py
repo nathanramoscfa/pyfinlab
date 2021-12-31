@@ -186,7 +186,7 @@ def clean_tickers(p0=None):
         except (AttributeError, ValueError, RuntimeWarning):
             continue
     print('Tickers which ran without raising an Error or RuntimeWarning: {}'.format(filtered_tickers))
-    print('Number of Tickers: {}'.format(len(tickers)))
+    print('Number of Tickers: {}'.format(len(filtered_tickers)))
     return filtered_tickers
 
 
