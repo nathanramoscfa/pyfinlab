@@ -10,7 +10,7 @@ def backtest_chart1(backtest_timeseries, start_date, end_date, figsize=(15, 9), 
     :param end_date: (str) End date string or datetime. Date format 'MM-DD-YYYY'.
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
+    :param save: (bool) Optional, saves the chart as a png file to charts folder. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
     :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
                          to linear.
@@ -54,7 +54,7 @@ def backtest_chart2(
     :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
+    :param save: (bool) Optional, saves the chart as a png file to charts folder. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
     :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
                          to linear.
@@ -92,7 +92,7 @@ def backtest_chart3(Results, title='Portfolio Backtests', figsize=(15, 9), save=
                              https://pmorissette.github.io/bt/bt.html?highlight=display#bt.backtest.Result
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (15, 9).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
+    :param save: (bool) Optional, saves the chart as a png file to charts folder. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
     :param colormap: (str or matplotlib colormap object) Colormap to select colors from. If string, load colormap with
                                                          that name from matplotlib. Defaults to 'jet'.
@@ -123,7 +123,7 @@ def backtest_linechart(
     :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (11, 5).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
+    :param save: (bool) Optional, saves the chart as a png file to charts folder. Defaults to False.
     :param show: (bool) Optional, displays plot. Defaults to True.
     :param yscale: (str) Optional, axis scale type to apply. Choose from 'linear', 'log', 'symlog', or 'logit'. Defaults
                          to linear.

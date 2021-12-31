@@ -1,6 +1,7 @@
 import pandas as pd
 import yfinance as yf
 import tia.bbg.datamgr as dm
+from tqdm import tqdm
 from tia.bbg import LocalTerminal
 from datetime import datetime, timedelta
 from dateutil.parser import parse
@@ -186,3 +187,5 @@ def name(api_source='yfinance', ticker=['SPY']):
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
     return name
+
+

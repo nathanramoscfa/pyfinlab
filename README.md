@@ -1,16 +1,8 @@
-
-
-
-
-
-
-
-
 # PyFinanceLab
 
 PyFinanceLab is a library which brings together various financial applications into one package for research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
 
-PyFinanceLab is in pre-alpha development. 
+PyFinanceLab is in alpha development. 
 
 
 ## Features
@@ -29,6 +21,9 @@ PyFinanceLab is in pre-alpha development.
 
 * **Excel Report Generation**
 	Show your optimizer results and backtest in a nicely formatted Excel file for further analysis. 
+
+* **Stock-to-Flow Modeling**
+	Generate and hypothesis test stock-to-flow models for 16 cryptocurrencies with data updated daily. 
     
 
 ## Installation
@@ -71,10 +66,17 @@ pip install --upgrade-strategy only-if-needed yfinance tqdm openpyxl patsy openp
 
 ### Installing PyFinLab
 
-Install pyfinlab to your environment's site-packages folder with the following command. 
+Unless you know what you are doing, it is recommended to install pyfinlab either using pip or cloning from Github, but not both in order to prevent conflicts arising from having pyfinlab installed in two locations on your computer. The developer version is the most up-to-date. 
+
+#### PyPI (pip)
+
+Install pyfinlab to your environment's site-packages folder with the following command.
 ```
 pip install pyfinlab
 ``` 
+
+#### Developer Version (Most Up-to-Date)
+
 Clone the GitHub repository to a project directory of your choosing. 
 ```
 git clone git+https://github.com/nathanramoscfa/pyfinlab.git
