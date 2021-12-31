@@ -68,18 +68,18 @@ pip install --upgrade-strategy only-if-needed yfinance tqdm openpyxl patsy openp
 
 Unless you know what you are doing, it is recommended to install pyfinlab either using pip or cloning from Github, but not both in order to prevent conflicts arising from having pyfinlab installed in two locations on your computer. The developer version is the most up-to-date. 
 
-#### PyPI (pip)
-
-Install pyfinlab to your environment's site-packages folder with the following command.
-```
-pip install pyfinlab
-``` 
-
 #### Developer Version (Most Up-to-Date)
 
 Clone the GitHub repository to a project directory of your choosing. 
 ```
 git clone git+https://github.com/nathanramoscfa/pyfinlab.git
+``` 
+
+#### PyPI (pip)
+
+Install pyfinlab to your environment's site-packages folder with the following command.
+```
+pip install pyfinlab
 ``` 
 
 
