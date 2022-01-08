@@ -6,15 +6,14 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.stats.api as sms
 import matplotlib.pyplot as plt
-import matplotlib.ticker
 import matplotlib.dates as mdates
 from statsmodels.compat import lzip
 from statsmodels.stats.stattools import durbin_watson
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import coint
 from matplotlib import style, cm
-from matplotlib.ticker import FuncFormatter
-from IPython.display import Latex, display, Markdown
+from matplotlib.ticker import FuncFormatter, ScalarFormatter
+from IPython.display import display, Math, Latex
 from tqdm import tqdm
 from scipy.optimize import curve_fit
 from scipy import stats
@@ -291,16 +290,11 @@ def markdown_model(params):
     :returns: (markdown text) Generates log scale pyplot.
     """
     a, b = params[0].round(3), params[1].round(3)
-    display(Markdown(
-        rf"""
-    $MarketCapUSD = e^{{{a}}} * SF^{{{b}}}
-
-    which is equivalent to...
-
-    $ln(MarketCapUSD) = {{{b}}} * ln(SF) + {{{a}}}
-
-    which is a linear equation. 
-    """))
+    print('Power Law Model:')
+    display(Math(r'MarketCapUSD = e^{{{}}} * SF^{{{}}}'.format(a, b)))
+    print('which is equivalent to the linear function:')
+    display(Math(r'ln(MarketCapUSD) = {{{}}} * ln(SF) + {{{}}}'.format(b, a)))
+    print('which is a linear function.')
 
 
 def breuschpagan(results, alpha=0.05):
@@ -525,8 +519,8 @@ def charts(df, ticker, params, chart=1, figsize=(12,6), save=False, show=True):
         im = ax.scatter(dates, ytrue, c=d, cmap=cm.jet, lw=1, alpha=1, zorder=5, label=ticker)
         plt.yscale('log', subsy=[1])
         ax.plot(dates, ypred, c='black', label='ModelCapMrktCurUSD: e^{:.3f} * SF^{:.3f}'.format(*params))
-        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        ax.yaxis.set_minor_formatter(matplotlib.ticker.ScalarFormatter())
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.set_minor_formatter(ScalarFormatter())
         ax.yaxis.set_major_formatter(FuncFormatter(lambda ytrue, _: '{:,.16g}'.format(ytrue)))
         cbar = fig.colorbar(im, ax=ax)
         cbar.ax.set_ylabel('Maximum Drawdown%')
