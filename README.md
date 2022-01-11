@@ -1,6 +1,6 @@
 # PyFinanceLab
 
-PyFinanceLab is a library which brings together various financial applications into one package for financial research and portfolio management. Navigate to the jupyter folder of the pyfinlab repository to see usage examples. 
+PyFinanceLab is a library which brings together various financial applications into one package for financial research and portfolio management. Navigate to the [jupyter folder](https://github.com/nathanramoscfa/pyfinlab/tree/main/jupyter) to see usage examples. 
 
 PyFinanceLab is in alpha development. 
 
