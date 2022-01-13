@@ -189,3 +189,69 @@ def name(api_source='yfinance', ticker=['SPY']):
     return name
 
 
+def coinmetrics_urls():
+    """
+    Scapes URLs where data is located.
+
+    :returns: (pd.DataFrame, list) Filename URLs of the csv files where data is located along with a list of tickers for
+                                  which a csv file exists with data.
+    """
+    query = re.findall('[^>]+\.csv', requests.get('https://github.com/coinmetrics/data/tree/master/csv/').text)
+    filenames, tickers = [], []
+    for filename in query:
+        try:
+            filenames.append(filename.split('href="')[1])
+            tickers.append(filename.split('href="')[1].split('/')[-1].split('.')[0])
+        except IndexError:
+            continue
+    filenames = pd.DataFrame(filenames, columns=['filenames'])
+    return filenames, tickers
+
+
+def coinmetrics_download():
+    """
+    Downloads data updated daily by Coin Metrics from https://github.com/coinmetrics/data/tree/master/csv. CSV files
+    containing the data is saved to '../data/coinmetrics/' path.
+    """
+    filenames, tickers = coinmetrics_urls()
+    for ticker in tqdm(tickers):
+        filename = filenames[filenames['filenames']=='/coinmetrics/data/blob/master/csv/{}.csv'.format(ticker)].squeeze()
+        csv = pd.read_csv('https://github.com' + filename + '?raw=true')
+        csv.to_csv('../data/coinmetrics/{}.csv'.format(ticker))
+
+
+def coinmetrics_tickers(search_term, filenames, tickers, show=False):
+    """
+    Helper function to filter out tickers which have no available data based on the search term parameter.
+
+    :param search_term: (str) Search term to look for in all ticker datasets. Type only one search term.
+    :param filenames: (pd.DataFrame) DataFrame of filenames where csv files are located.
+    :param tickers: (list of str) List of tickers to filter through.
+    :param show: (bool) Optional, prints tickers which have data available.
+    :returns: (list) List of tickers which have data available.
+    """
+    filtered_tickers = []
+    for ticker in tqdm(tickers):
+        filename = filenames[filenames['filenames'] == '/coinmetrics/data/blob/master/csv/{}.csv'.format(ticker)].squeeze()
+        df = pd.read_csv('../data/coinmetrics/{}.csv'.format(ticker))
+        columns = pd.DataFrame(df.columns, columns=['columns'])
+        if columns[(columns['columns'].str.contains(search_term))].empty is not True:
+            filtered_tickers.append(ticker)
+        else:
+            continue
+    if show==True:
+        print('Tickers with Available Data: {}'.format(filtered_tickers))
+    return filtered_tickers
+
+
+def coinmetrics_timeseries(ticker, fields):
+    """
+    Helper function to filter out tickers which have no available data based on the search term parameter.
+
+    :param ticker: (str) Ticker of cryptocurrency you want to look up.
+    :param fields: (str or list of str) Data fields for which to include in timeseries DataFrame.
+    :returns: (pd.DateFrame or pd.Series) DataFrame or Series (if only one field) containing requested data.
+    """
+    df = pd.read_csv('../data/coinmetrics/{}.csv'.format(ticker)).iloc[:, 1:].set_index('time', drop=True)
+    df.index = pd.to_datetime(df.index)
+    return df[fields].dropna()

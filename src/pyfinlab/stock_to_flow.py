@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from statsmodels.compat import lzip
 from statsmodels.stats.stattools import durbin_watson
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.stattools import coint
+from statsmodels.tsa.stattools import adfuller, coint
 from matplotlib import style, cm
 from matplotlib.ticker import FuncFormatter, ScalarFormatter
 from IPython.display import display, Math, Latex
