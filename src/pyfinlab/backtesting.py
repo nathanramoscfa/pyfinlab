@@ -69,24 +69,28 @@ def benchmark_strategy(benchmark_ticker='SPY'):
     )
 
 
-def benchmark_backtest(benchmark_ticker, start_date, end_date, api_source):
+def benchmark_backtest(benchmark_ticker, api_source, start_date, end_date):
     """
     Creates Backtest object combining Strategy object with price data from the benchmark.
 
-    :param benchmark_ticker: (str) Optional, benchmark ticker. Defaults to 'SPY'.
+    :param benchmark_ticker: (str) Optional, benchmark ticker.
+    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
     :param start_date: (str) Start date of requested time series. Must be in 'YYYY-MM-DD' (i.e. '2021-06-21') if
                              api_source is yfinance. Must be in 'MM/DD/YYYY' (i.e. '2021-06-21') format if api_source is
                              bloomberg.
     :param end_date: (str) End date of requested time series. Must be in 'YYYY-MM-DD' (i.e. '2021-06-21') if
                            api_source is yfinance. Must be in 'MM/DD/YYYY' (i.e. '2021-06-21') format if api_source is
                            bloomberg.
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
     :return: (obj) Backtest object combining Strategy object with price data.
     """
-    benchmark_prices = api.price_history([benchmark_ticker], start_date, end_date, api_source)
-    benchmark_prices.columns = [benchmark_ticker]
-    benchmark_name = api.name(api_source, benchmark_ticker)
-    return bt.Backtest(benchmark_strategy(benchmark_ticker), benchmark_prices)
+    benchmark_name = api.name(benchmark_ticker, api_source)
+    if api_source=='bloomberg':
+        benchmark_name = benchmark_name + ' (' + benchmark_ticker + ')'
+        benchmark_prices = api.price_history([benchmark_ticker + ' US Equity'], start_date, end_date, api_source)
+    else:
+        benchmark_prices = api.price_history([benchmark_ticker], start_date, end_date, api_source)
+    benchmark_prices.columns = [benchmark_name]
+    return bt.Backtest(benchmark_strategy(benchmark_name), benchmark_prices)
 
 
 def run_backtest(backtests, benchmark):
@@ -107,7 +111,7 @@ def run_backtest(backtests, benchmark):
     )
 
 
-def linechart(Results, title='Backtest Results', figsize=(15, 9), save=False, show=True, colormap='jet'):
+def linechart(Results, title='Backtest Results', figsize=(15, 9), save_plot=False, show_plot=True, show_legend=True, colormap='jet'):
     """
     Plots the performance for all efficient frontier portfolios.
 
@@ -116,18 +120,22 @@ def linechart(Results, title='Backtest Results', figsize=(15, 9), save=False, sh
     :param title: (str) Optional, used to name image file if saved. Defaults to 'backtests'.
     :param figsize: (float, float) Optional, multiple by which to multiply the maximum weighting constraints at the ticker level.
                                    Defaults to (15, 9).
-    :param save: (bool) Optional, width, height in inches. Defaults to False.
-    :param show: (bool) Optional, displays plot. Defaults to True.
+    :param save_plot: (bool) Optional, width, height in inches. Defaults to False.
+    :param show_plot: (bool) Optional, displays plot. Defaults to True.
+    :param show_legend:  (bool) Optional, displays legend. Defaults to True.
     :param colormap: (str or matplotlib colormap object) Colormap to select colors from. If string, load colormap with
                                                          that name from matplotlib. Defaults to 'jet'.
     :return: (fig) Plot of performance for all efficient frontier portfolios.
     """
     plot = Results.plot(title=title, figsize=figsize, colormap=colormap)
     fig = plot.get_figure()
-    plt.legend(loc="upper left")
-    if save == True: plt.savefig(
+    if show_legend==True:
+        plt.legend(loc="upper left")
+    else:
+        plt.legend('', frameon=False)
+    if save_plot==True: plt.savefig(
         '../charts/linechart_{}.png'.format(datetime.today().strftime('%m-%d-%Y')), bbox_inches='tight')
-    if show == False: plt.close()
+    if show_plot==False: plt.close()
 
 
 def backtest_timeseries(Results, freq='d'):

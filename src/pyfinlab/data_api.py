@@ -5,7 +5,6 @@ from tqdm import tqdm
 from tia.bbg import LocalTerminal
 from datetime import datetime, timedelta
 from dateutil.parser import parse
-from pyfinlab import portfolio_optimization as opt
 
 """
 These functions help easily pull financial data using either yfinance (free) or tia (requires Bloomberg terminal 
@@ -15,7 +14,7 @@ subscription).
 
 def price_history(
         tickers, start_date, end_date, api_source='yfinance', country_code='US', asset_class_code='Equity',
-        restricted=False, banned=False, dropna=True
+        drop_method='dropna', drop_by='index'
 ):
     """
     Downloads price history data into a pd.DataFrame.
@@ -32,14 +31,13 @@ def price_history(
                                Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
     :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
                                    on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
-    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
-    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
-    :param dropna: (bool): Optional, removes rows with missing prices. Useful for creating DataFrame of prices all starting
-                           on the date for which all tickers have a price. If False, securities with not enough price
-                           data will have their NaN values backfilled using the first available price.
+    :param drop_method: (str): Optional, useful for creating DataFrame of prices all starting on the date for which all
+                                tickers have a price. 'dropna' removes rows with missing prices. 'bfill' backfills
+                                NaN values using the first available price.
+    :param drop_by: (str): Optional, 'index' will drop rows with NaN. 'columns' will drop columns with NaN.
     :return: (pd.DataFrame) Dataframe of daily asset prices as a time series.
+
     """
-    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted, banned)
     if api_source == 'yfinance':
         prices = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
         if isinstance(prices, pd.Series):
@@ -50,11 +48,16 @@ def price_history(
         prices = prices.reindex(sorted(prices.columns), axis=1)
         prices.columns = [ticker.replace(' {} {}'.format(country_code, asset_class_code), '') for ticker in prices.columns]
     else: raise ValueError('api_source must be set to either yfinance or bloomberg')
-    if dropna==True:
-        prices = prices.dropna()
-    else:
+    if drop_method=='dropna':
+        if drop_by=='index':
+            prices = prices.dropna()
+        elif drop_by=='columns':
+            prices = prices.dropna(axis=1)
+    elif drop_method=='bfill':
         prices = prices.bfill()
-    return prices.round(4)
+    else:
+        pass
+    return prices
 
 
 def risk_free_rate(start_date, end_date, api_source='yfinance'):
@@ -74,15 +77,15 @@ def risk_free_rate(start_date, end_date, api_source='yfinance'):
     if api_source == 'yfinance':
         return (price_history(['^TNX'], start_date, end_date, 'yfinance').mean() / 100).round(4).squeeze()
     elif api_source == 'bloomberg':
-        return (price_history(['USGG10YR'], start_date, end_date, 'bloomberg', None, 'Index').mean()/100).round(4).squeeze()
+        return (price_history(['USGG10YR Index'], start_date, end_date, 'bloomberg', None, 'Index').mean() / 100).round(4).squeeze()
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
 
 
 def current_equity_data(
-        tickers, info=None, api_source='yfinance', country_code='US', asset_class_code='Equity', get_list=False,
-        start_date=None, end_date=None, market_data_override=None, calc_interval=None,
-        restricted=False, banned=False
+        tickers, info=None, api_source='yfinance', get_list=False,
+        start_date=None, end_date=None, market_data_override=None, calc_interval=None, best_fperiod_override=None,
+        scaling_format=None
 ):
     """
     Downloads point-in-time data. For example, you can download the current price or fundamental data like the PE
@@ -97,10 +100,6 @@ def current_equity_data(
                                The keys this dictionary are what the info parameter of this function uses to look up
                                information. This parameter only works if api_source is yfinance, otherwise, it is ignored.
     :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param country_code: (str) Country code for tickers if using bloomberg as api_source. For example, SPY on the
-                               Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
-    :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
-                                   on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
     :param start_date: (str) Start date string or datetime. Date format must be 'YYYY-MM-DD'.
     :param end_date: (str) End date string or datetime. Date format must be 'YYYY-MM-DD'.
     :param market_data_override: (str) Type of market data used in the calculation. Any historical field can be used for
@@ -112,26 +111,34 @@ def current_equity_data(
                                 set the override to WTD (week to date), MTD (month to date), YTD (year to date), FWTD
                                 (first day of week to date), FMTD (first day of month to date), FYTD ( first day of
                                 year to date).
-    :param restricted: (bool) Optional, filters out tickers on the restricted_securities.csv list. Default is False.
-    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
+    :param calc_interval: (str) Specifies the fiscal period override for Bloomberg Estimates at the company level. There
+                                are two valid formats, relative and fixed. This override can also be used on certain
+                                applicable Equity Index fields. Search BEST_FPERIOD_OVERRIDE on the Bloomberg terminal
+                                for more information.
+    :param best_fperiod_override: (str) Specifies the fiscal period override for Bloomberg Estimates at the company level.
+                                        There are two valid formats, relative and fixed. This override can also be used
+                                        on certain applicable Equity Index fields.
+    :param scaling_format: (str) Specifies the display format of calculated field returns. Specifies the display unit for
+                                 equity fundamental data. The following values can be used as overrides to change the
+                                 scaling for fundamental fields:  'UNT' - Units; 'K' - Thousands; 'MLN' - Millions;
+                                 'BLN' - Billions; 'TRN' - Trillions.
     :return: (str) Returns the current point-in-time data as specified in the info parameter for the requested tickers.
     """
-    tickers = opt.tickers_(tickers, api_source, country_code, asset_class_code, restricted, banned)
     if api_source == 'yfinance':
         if isinstance(tickers, str):
-            if len([tickers]) != 1:
+            if len([tickers])!=1:
                 raise ValueError(
                     'yfinance api only allows one ticker at a time. Check your ticker list to ensure it contains only one ticker.')
         else:
             if len(tickers) != 1:
                 raise ValueError(
                     'yfinance api only allows one ticker at a time. Check your ticker list to ensure it contains only one ticker.')
-        if get_list==True:
+        if get_list:
             return yf.Ticker(tickers).info
         else:
             df = yf.Ticker(tickers).info
             df = pd.DataFrame.from_dict(
-                dict((k, df[k]) for k in (info)),
+                dict((k, df[k]) for k in info),
                 orient='index', columns=[tickers]).T
             df.index.name = 'TICKER'
             return df
@@ -142,6 +149,8 @@ def current_equity_data(
             CUST_TRR_END_DT=end_date,
             MARKET_DATA_OVERRIDE=market_data_override,
             CALC_INTERVAL=calc_interval,
+            BEST_FPERIOD_OVERRIDE=best_fperiod_override,
+            SCALING_FORMAT=scaling_format,
             ignore_field_error=1, ignore_security_error=1).as_frame()
         df.index.name = 'TICKER'
         return df
@@ -171,7 +180,7 @@ def start_end_dates(num_years=10, api_source='yfinance'):
     return start_date, end_date
 
 
-def name(api_source='yfinance', ticker=['SPY']):
+def name(ticker=['SPY'], api_source='yfinance'):
     """
     Downloads the name of each ticker in ticker list. Only 1 ticker can be downloaded at a time if using yfinance as
     api_source. There is not such limit if api_source is bloomberg.
@@ -183,7 +192,7 @@ def name(api_source='yfinance', ticker=['SPY']):
     if api_source=='yfinance':
         name = current_equity_data(ticker, ['longName'], api_source).squeeze()
     elif api_source=='bloomberg':
-        name = current_equity_data(ticker, ['LONG_COMP_NAME'], api_source).squeeze()
+        name = current_equity_data(ticker + ' US Equity', ['LONG_COMP_NAME'], api_source).squeeze()
     else:
         raise ValueError('api_source must be set to either yfinance or bloomberg')
     return name

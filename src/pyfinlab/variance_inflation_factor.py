@@ -4,7 +4,7 @@ from pyfinlab import data_api as api
 from tqdm import tqdm
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-def vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=False):
+def vif(tickers, num_years=10, api_source='yfinance', threshold=5):
     """
     Computes the variance inflation factor of each asset and removes assets which have high variance inflation factor
     in order to reduce multicollinearity.
@@ -16,7 +16,7 @@ def vif(tickers, num_years=10, api_source='yfinance', threshold=5, restricted=Fa
     :return: (pd.DataFrame) Returns DataFrame of assets whose variance inflation factor is below the threshold.
     """
     start_date, end_date = api.start_end_dates(num_years, api_source)
-    prices = api.price_history(tickers, start_date, end_date, api_source, restricted=restricted)
+    prices = api.price_history(tickers, start_date, end_date, api_source)
     returns = prices.pct_change().dropna()
     for i in tqdm(range(len(returns))):
         vif = pd.DataFrame()

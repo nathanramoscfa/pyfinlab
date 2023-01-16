@@ -6,6 +6,7 @@ from datetime import datetime
 from patsy import dmatrices
 from pyfinlab import return_models as rets
 from pyfinlab import risk_models as risk
+from pyfinlab import data_api as api
 
 """
 These functions measure the historical performance of efficient frontier portfolios. 
@@ -58,17 +59,18 @@ def backtested_periods(backtest_statistics):
     return dictionary
 
 
-def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ticker='SPY', risk_free_rate=0.02):
+def performance_stats(
+        backtest_timeseries, benchmark_ticker='SPY', risk_free_rate=0.02, freq=252):
     """
     Computes the cumulative performance statistics based on data from the backtest_timeseries.
 
     :param backtest_timeseries: (pd.DataFrame) Timeseries performance of efficient frontier portfolios.
-    :param risk_model: (str) Optional, risk model used to compute cov_matrix from either PyPortfolioOpt (free open
-                             source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to 'sample_cov'.
     :param benchmark_ticker: (str) Optional, benchmark ticker. Takes only one ticker. Defaults to 'SPY'.
     :param risk_free_rate: (float) Optional, annualized risk-free rate, defaults to 0.02.
+    :param freq: (str) Data frequency used for display purposes. Refer to pandas docs for valid freq strings.
     :return: (pd.DataFrame) DataFrame of cumulative performance statistics for all efficient frontier portfolios.
     """
+    benchmark_ticker = backtest_timeseries.columns[-1]
     perf = ffn.core.GroupStats(backtest_timeseries)
     perf.set_riskfree_rate(float(risk_free_rate))
     portfolios = list(backtest_timeseries.columns)
@@ -80,7 +82,6 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
     capms = {}
     betas = {}
     jensen_alphas = {}
-    appraisal_ratios = {}
     appraisal_ratios = {}
     sharpes = {}
     treynors = {}
@@ -95,12 +96,12 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
     for portfolio in portfolios[:-1]:
         p = backtest_timeseries.copy()[[portfolio, benchmark_ticker]]
         r = p.pct_change().dropna()
-        risk_free_rate = risk_free_rate / (252 / r.shape[0]) if r.shape[0] < 252 else risk_free_rate / 252
+        risk_free_rate = risk_free_rate / (freq / r.shape[0]) if r.shape[0] < freq else risk_free_rate / freq
         p.name, r.name = portfolio, benchmark_ticker
         # return
-        cagr = (1 + r).prod() ** (252 / (252 if r.shape[0] < 252 else r.shape[0])) - 1
+        cagr = (1 + r).prod() ** (freq / (freq if r.shape[0] < freq else r.shape[0])) - 1
         # risk
-        vol = r.std() * (252 if r.shape[0] > 252 else r.shape[0]) ** 0.5
+        vol = r.std() * (freq if r.shape[0] > freq else r.shape[0]) ** 0.5
         # client regression model
         y, x = r[portfolio], r[benchmark_ticker]
         yx = pd.concat([y, x], axis=1)
@@ -154,10 +155,10 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
         information_ratio = yx1['Active_Return'].mean() / yx1['Active_Return'].std()
         # sortino ratio
         downside_returns = (yx1[yx1[portfolio] < 0])[portfolio].values
-        downside_deviation = downside_returns.std() * (252 if r.shape[0] > 252 else r.shape[0]) ** 0.5
+        downside_deviation = downside_returns.std() * (freq if r.shape[0] > freq else r.shape[0]) ** 0.5
         sortino = cagr[portfolio] / downside_deviation
         downside_returns_b = (yx1[yx1[benchmark_ticker] < 0])[[benchmark_ticker]].values
-        downside_deviation_b = downside_returns_b.std() * (252 if r.shape[0] > 252 else r.shape[0]) ** 0.5
+        downside_deviation_b = downside_returns_b.std() * (freq if r.shape[0] > freq else r.shape[0]) ** 0.5
         sortino_b = cagr[benchmark_ticker] / downside_deviation_b
         # capture ratio
         up_returns = yx[yx[portfolio] >= 0].round(4)
@@ -194,9 +195,9 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
         # ulcer performance index
         ulcer = \
         ffn.core.to_ulcer_performance_index(
-            p[[portfolio]], risk_free_rate, nperiods=252).to_frame('ulcer_index').values[0].squeeze()
+            p[[portfolio]], risk_free_rate, nperiods=freq).to_frame('ulcer_index').values[0].squeeze()
         ulcer_b = ffn.core.to_ulcer_performance_index(
-            p[[benchmark_ticker]], risk_free_rate, nperiods=252).to_frame('ulcer_index').values[0].squeeze()
+            p[[benchmark_ticker]], risk_free_rate, nperiods=freq).to_frame('ulcer_index').values[0].squeeze()
         # M^2 alpha
         m2 = float(sharpe * vol[benchmark_ticker] + risk_free_rate)
         m2_b = float(sharpe_b * vol[benchmark_ticker] + risk_free_rate)
@@ -278,24 +279,25 @@ def performance_stats(backtest_timeseries, risk_model='sample_cov', benchmark_ti
     return performance_data.round(4)
 
 
-def compile_performance_stats(backtest_timeseries, risk_model, benchmark_ticker, risk_free_rate=0.02):
+def compile_performance_stats(
+        backtest_timeseries, api_source, benchmark_ticker='SPY', risk_free_rate=0.02):
     """
     Compiles the performance statistics of multiple backtest periods as DataFrames within a dictionary organized by time
     period.
 
     :param backtest_timeseries: (pd.DataFrame) Timeseries performance of efficient frontier portfolios.
-    :param risk_model: (str) Optional, risk model used to compute cov_matrix from either PyPortfolioOpt (free open
-                             source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to 'sample_cov'.
+    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
     :param benchmark_ticker: (str) Optional, benchmark ticker. Takes only one ticker. Defaults to 'SPY'.
     :param risk_free_rate: (float) Optional, annualized risk-free rate, defaults to 0.02.
     :return: (dict) Dictionary of DataFrames of performance statistics organized by time period.
     """
+    benchmark_ticker = api.name(benchmark_ticker, api_source)
     count = period_count(backtest_timeseries)
     compiled_stats = {}
     np.seterr(divide='ignore', invalid='ignore')
     for period in periods[:count]:
         compiled_stats[period] = performance_stats(
-            backtest_timeseries.iloc[-period:, :], risk_model, benchmark_ticker, risk_free_rate)
+            backtest_timeseries.iloc[-period:, :], benchmark_ticker, risk_free_rate)
     np.seterr(divide='warn', invalid='warn')
     return compiled_stats
 

@@ -55,59 +55,7 @@ classification = classification.replace({
 groups = list(classification.columns[1:])
 
 
-def tickers_(tickers, api_source, country_code='US', asset_class_code='Equity', restricted=False, banned=False):
-    """
-    Converts tickers to the proper format depending on whether api_source is 'yfinance' or 'bloomberg'.
-
-    :param tickers: (list or str) List of tickers or string of single ticker. Example: ['SPY', 'AGG', 'GLD']
-    :param api_source: (str) API source to pull data from. Choose from 'yfinance' or 'bloomberg'. Default is yfinance.
-    :param country_code: (str) Country code for tickers if using bloomberg as api_source. For example, SPY on the
-                               Bloomberg terminal would be "SPY US Equity" with "US" being the country code.
-    :param asset_class_code: (str) Asset class code for tickers if using bloomberg as api_source. For example, SPY
-                                   on the Bloomberg terminal would be "SPY US Equity" with "Equity" being the country code.
-    :param restricted: (bool) Optional, filters out tickers on the "restricted" tab in ('../data/portopt_inputs.xlsx'). Default is False.
-    :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
-    :return: (list) List of formatted tickers.
-    """
-    if api_source == 'yfinance':
-        pass
-    elif api_source == 'bloomberg':
-        try:
-            tickers = pd.DataFrame(tickers, columns=['TICKER'])
-        except ValueError:
-            tickers = pd.DataFrame([tickers], columns=['TICKER'])
-        if asset_class_code == 'Equity':
-            tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + country_code + ' ' + asset_class_code
-        else:
-            tickers['TICKER'] = tickers['TICKER'].astype(str) + ' ' + asset_class_code
-        tickers = tickers.squeeze()
-    else:
-        raise ValueError('api_source must be set to either yfinance or bloomberg')
-    if restricted == True:
-        restricted_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='restricted')[
-            ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates(subset=['Symbol'])
-        if api_source == 'bloomberg':
-            restricted_list['Symbol'] = restricted_list['Symbol'] + ' US Equity'
-        else:
-            pass
-        restricted_tickers = list(restricted_list.Symbol)
-        tickers = [x for x in tickers if x not in restricted_tickers]
-    if banned == True:
-        banned_tickers = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='banned')[
-            ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates()
-        if api_source == 'bloomberg':
-            banned_tickers['Symbol'] = banned_tickers['Symbol'] + ' US Equity'
-        else:
-            pass
-        banned_tickers = list(banned_tickers.Symbol)
-        tickers = [x for x in tickers if x not in banned_tickers]
-    else:
-        pass
-    tickers = tickers.squeeze() if isinstance(tickers, pd.DataFrame) else tickers
-    return tickers
-
-
-def constraints(cov_matrix, restricted=False, banned=False):
+def constraints(cov_matrix, restricted=False, banned=False, allow_cat2=False):
     """
     Returns dictionaries and tuples of ticker and sector-level constraints which are then input into the
     optimize_portfolio() function.
@@ -118,12 +66,17 @@ def constraints(cov_matrix, restricted=False, banned=False):
     :return: (tuple) Returns tuple of ticker-level constraints as a list and sector-level constraints as tuples.
     """
     bounds = mapping[['TICKER', 'MIN', 'MAX']]
-    if restricted == True:
+    if restricted==True:
         restricted_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='restricted')[
             ['Symbol', 'Prohibition Reason', 'Restriction']].dropna().drop_duplicates(subset=['Symbol'])
+        if allow_cat2==True:
+            restricted_list = restricted_list[
+                (restricted_list['Prohibition Reason']!='Category 2A ETF') &
+                (restricted_list['Prohibition Reason']!='Category 2B ETF')
+            ]
         restricted_tickers = list(restricted_list.Symbol)
         bounds = bounds[~bounds['TICKER'].isin(restricted_tickers)]
-    if banned == True:
+    if banned==True:
         banned_list = pd.read_excel('../data/portopt_inputs.xlsx', engine='openpyxl', sheet_name='banned')[
             ['Symbol', 'Prohibition Reason']].dropna().drop_duplicates(subset=['Symbol'])
         banned_list = list(banned_list.Symbol)
@@ -142,33 +95,35 @@ def constraints(cov_matrix, restricted=False, banned=False):
     holding_constraint = inputs.get('holding')
     sector_constraint = inputs.get('sector')
 
+    mapper = classification[classification.index.isin(cov_matrix.index)]
+
     region_lower = dict(zip(list(region_constraint['REGION']), list(region_constraint['MIN'])))
     region_upper = dict(zip(list(region_constraint['REGION']), list(region_constraint['MAX'])))
-    region_mapper = dict(zip(list(classification.index), list(classification['REGION'])))
+    region_mapper = dict(zip(list(mapper.index), list(mapper['REGION'])))
     size_lower = dict(zip(list(size_constraint['SIZE']), list(size_constraint['MIN'])))
     size_upper = dict(zip(list(size_constraint['SIZE']), list(size_constraint['MAX'])))
-    size_mapper = dict(zip(list(classification.index), list(classification['SIZE'])))
+    size_mapper = dict(zip(list(mapper.index), list(mapper['SIZE'])))
     style_lower = dict(zip(list(style_constraint['STYLE']), list(style_constraint['MIN'])))
     style_upper = dict(zip(list(style_constraint['STYLE']), list(style_constraint['MAX'])))
-    style_mapper = dict(zip(list(classification.index), list(classification['STYLE'])))
+    style_mapper = dict(zip(list(mapper.index), list(mapper['STYLE'])))
     credit_lower = dict(zip(list(credit_constraint['CREDIT']), list(credit_constraint['MIN'])))
     credit_upper = dict(zip(list(credit_constraint['CREDIT']), list(credit_constraint['MAX'])))
-    credit_mapper = dict(zip(list(classification.index), list(classification['CREDIT'])))
+    credit_mapper = dict(zip(list(mapper.index), list(mapper['CREDIT'])))
     duration_lower = dict(zip(list(duration_constraint['DURATION']), list(duration_constraint['MIN'])))
     duration_upper = dict(zip(list(duration_constraint['DURATION']), list(duration_constraint['MAX'])))
-    duration_mapper = dict(zip(list(classification.index), list(classification['DURATION'])))
+    duration_mapper = dict(zip(list(mapper.index), list(mapper['DURATION'])))
     asset_lower = dict(zip(list(asset_constraint['ASSET_CLASS']), list(asset_constraint['MIN'])))
     asset_upper = dict(zip(list(asset_constraint['ASSET_CLASS']), list(asset_constraint['MAX'])))
-    asset_mapper = dict(zip(list(classification.index), list(classification['ASSET_CLASS'])))
+    asset_mapper = dict(zip(list(mapper.index), list(mapper['ASSET_CLASS'])))
     type_lower = dict(zip(list(type_constraint['SECURITY_TYPE']), list(type_constraint['MIN'])))
     type_upper = dict(zip(list(type_constraint['SECURITY_TYPE']), list(type_constraint['MAX'])))
-    type_mapper = dict(zip(list(classification.index), list(classification['SECURITY_TYPE'])))
+    type_mapper = dict(zip(list(mapper.index), list(mapper['SECURITY_TYPE'])))
     holding_lower = dict(zip(list(holding_constraint['HOLDING']), list(holding_constraint['MIN'])))
     holding_upper = dict(zip(list(holding_constraint['HOLDING']), list(holding_constraint['MAX'])))
-    holding_mapper = dict(zip(list(classification.index), list(classification['HOLDING'])))
+    holding_mapper = dict(zip(list(mapper.index), list(mapper['HOLDING'])))
     sector_lower = dict(zip(list(sector_constraint['SECTOR']), list(sector_constraint['MIN'])))
     sector_upper = dict(zip(list(sector_constraint['SECTOR']), list(sector_constraint['MAX'])))
-    sector_mapper = dict(zip(list(classification.index), list(classification['SECTOR'])))
+    sector_mapper = dict(zip(list(mapper.index), list(mapper['SECTOR'])))
 
     upper_list = [
         region_upper,
@@ -328,14 +283,36 @@ def constraints(cov_matrix, restricted=False, banned=False):
     )
 
 
+def clean_weights(weights, cutoff=0.0001, rounding=4):
+    """
+    Helper method to clean the raw weights, setting any weights whose absolute
+    values are below the cutoff to zero, and rounding the rest.
+
+    :param weightings: (pd.DataFrame) DataFrame of weightings.
+    :type cutoff: float, optional
+    :param rounding: number of decimal places to round the weights, defaults to 5.
+                     Set to None if rounding is not desired.
+    :return: (pd.DataFrame) DataFrame of cleaned weights.
+    """
+    if weights is None:
+        raise AttributeError("Weights not yet computed")
+    clean_weights = weights.copy()
+    clean_weights[np.abs(clean_weights)<cutoff]=0
+    if rounding is not None:
+        if not isinstance(rounding, int) or rounding<1:
+            raise ValueError("rounding must be a positive integer")
+        clean_weights = np.round(clean_weights, rounding)
+    clean_weights = clean_weights.div(clean_weights.sum())
+    clean_weights = clean_weights[clean_weights!=0]
+    return clean_weights
+
+
 def optimize_portfolio(
         exp_returns, cov_matrix,
-        risk_model='sample_cov',
-        return_model='avg_historical_return',
         obj_function='max_sharpe',
         target_volatility=0.4, target_return=0.2,
         risk_free_rate=0.02, risk_aversion=1, market_neutral=False,
-        restricted=False, banned=False, gamma=0.0, add_custom_constraints=False
+        restricted=False, banned=False, allow_cat2=False, gamma=0.0, add_custom_constraints=False, min_weight=0.0
 ):
     """
     Compute the optimal portfolio.
@@ -343,11 +320,6 @@ def optimize_portfolio(
     :param exp_returns: (pd.Series) Expected returns for each asset.
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset. This **must** be positive semidefinite,
                                       otherwise optimization will fail.
-    :param risk_model: (str) Optional, risk model used to compute cov_matrix from either PyPortfolioOpt (free open
-                             source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to 'sample_cov'.
-    :param return_model: (str) Optional, return model used to compute the exp_returns from either PyPortfolioOpt (free
-                               open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
-                               'avg_historical_return'.
     :param obj_function: (str) Objective function used in the portfolio optimization. Defaults to 'max_sharpe'.
     :param target_volatility: (float) Optional, the desired maximum volatility of the resulting portfolio. Required if
                                       objective function is 'efficient_risk', otherwise, parameter is ignored. Defaults
@@ -363,6 +335,8 @@ def optimize_portfolio(
     :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
+    :param min_weight: (float) Optional, minimum weight to apply. Weights below this level are reallocated to weights which are
+                               above this level.
     :return: (tuple) Tuple of weightings (pd.DataFrame) and results (pd.DataFrame) showing risk, return, sharpe ratio
                      metrics.
     """
@@ -376,7 +350,7 @@ def optimize_portfolio(
         sector_lower, sector_upper, sector_mapper, value, growth, blend, equity_etp, equity_stock,
         broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock,
         usa_global, developed, emerging
-    ) = constraints(cov_matrix, restricted, banned)
+    ) = constraints(cov_matrix, restricted, banned, allow_cat2)
 
     # Empty DataFrames
     weightings = pd.DataFrame()
@@ -401,12 +375,12 @@ def optimize_portfolio(
 
     # Add Custom Constraints
     if add_custom_constraints==True:
-        ef.add_constraint(lambda w: w @ growth == w @ value)
+        ef.add_constraint(lambda w: w @ growth <= w @ value)
         ef.add_constraint(lambda w: w @ largecap_etp >= 2 * w @ midcap_etp)
         ef.add_constraint(lambda w: w @ midcap_etp >= 2 * w @ smallcap_etp)
         ef.add_constraint(lambda w: w @ largecap_stock >= 2 * w @ midcap_stock)
         ef.add_constraint(lambda w: w @ midcap_stock >= 2 * w @ smallcap_stock)
-        ef.add_constraint(lambda w: w @ equity_etp >= 3 * w @ equity_stock)
+        ef.add_constraint(lambda w: w @ equity_etp >= 2 * w @ equity_stock)
         ef.add_constraint(lambda w: w @ usa_global >= 2 * w @ developed)
         ef.add_constraint(lambda w: w @ developed >= 2 * w @ emerging)
 
@@ -425,15 +399,16 @@ def optimize_portfolio(
         raise NotImplementedError('Check objective parameter. Double-check spelling.')
 
     # Compile the optimized weightings and performance results
-    weights = ef.clean_weights(0.005)
+    weights = ef.clean_weights(min_weight)
     weights = pd.DataFrame.from_dict(weights, orient='index', columns=[int(1)]).round(4)
+    weights = clean_weights(weights, cutoff=min_weight)
     performance = pd.DataFrame(ef.portfolio_performance(risk_free_rate=risk_free_rate)).round(4)
-    weightings = pd.concat([weightings, weights], axis=1)
+    weightings = pd.concat([weightings, weights], axis=1).round(4)
     results = pd.concat([results, performance], axis=1)
     results.columns = ['PORTFOLIO']
-    results = results.rename(index={0: return_model, 1: risk_model, 2: 'sharpe_ratio'})
+    results = results.rename(index={0: 'Expected_Return', 1: 'Volatility', 2: 'Sharpe_Ratio'})
     weightings.index.name = 'TICKER'
-    weightings = pd.merge(classification, weightings, on='TICKER')
+    weightings = pd.merge(classification, weightings, on='TICKER').fillna(0)
     return weightings, results
 
 
@@ -446,17 +421,15 @@ def display_portfolio(portfolio, results):
     :return: (pd.DataFrame) Displays the optimized portfolio.
     """
     portfolio.rename(columns={int(1): 'WEIGHTING'}, inplace=True)
-    portfolio = portfolio[portfolio['WEIGHTING'] != 0].sort_values(by='WEIGHTING', ascending=False)
+    portfolio = portfolio[portfolio['WEIGHTING']!=0].sort_values(by='WEIGHTING', ascending=False)
     print(results)
     return portfolio
 
 
 def min_risk(
         exp_returns, cov_matrix,
-        risk_model='sample_cov',
-        return_model='avg_historical_return',
         obj_function='min_volatility',
-        restricted=False, gamma=0.0
+        restricted=False, banned=False, allow_cat2=False, gamma=0.0, min_weight=0.0
 ):
     """
     Computes the minimum volatility of the minimum volatility portfolio.
@@ -464,31 +437,25 @@ def min_risk(
     :param exp_returns: (pd.Series) Expected returns for each asset.
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset. This **must** be positive semidefinite,
                                       otherwise optimization will fail.
-    :param risk_model: (str) Optional, risk model used to compute cov_matrix from either PyPortfolioOpt (free open
-                             source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to 'sample_cov'.
-    :param return_model: (str) Optional, return model used to compute the exp_returns from either PyPortfolioOpt (free
-                               open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
-                               'avg_historical_return'.
     :param obj_function: (str) Objective function used in the portfolio optimization. Defaults to 'min_volatility'.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
+    :param min_weight: (float) Optional, minimum weight to apply. Weights below this level are reallocated to weights which are
+                               above this level.
     :return: (float) Volatility of the minimum risk portfolio.
     """
     min_volatility = optimize_portfolio(
         exp_returns, cov_matrix,
-        risk_model, return_model,
         obj_function,
-        restricted=restricted, gamma=gamma
+        restricted=restricted, banned=banned, allow_cat2=allow_cat2, gamma=gamma, min_weight=min_weight
     )
-    return min_volatility[1].loc[risk_model].squeeze()
+    return min_volatility[1].loc['Volatility'].squeeze()
 
 
 def max_risk(
         exp_returns, cov_matrix,
-        risk_model='sample_cov',
-        return_model='avg_historical_return',
         obj_function='efficient_risk',
         target_volatility=0.4,
-        restricted=False, gamma=0.0
+        restricted=False, banned=False, allow_cat2=False, gamma=0.0, min_weight=0.0
 ):
     """
     Computes the maximum volatility of the maximum volatility portfolio. The default target volatility used to optimize
@@ -497,30 +464,27 @@ def max_risk(
     :param exp_returns: (pd.Series) Eexpected returns for each asset.
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset. This **must** be positive semidefinite,
                                       otherwise optimization will fail.
-    :param risk_model: (str) Optional, risk model used to compute cov_matrix from either PyPortfolioOpt (free open
-                             source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to 'sample_cov'.
-    :param return_model: (str) Optional, return model used to compute the exp_returns from either PyPortfolioOpt (free
-                               open source) or Hudson & Thames' PortfolioLab (subscription required). Defaults to
-                               'avg_historical_return'.
     :param obj_function: (str) Objective function used in the portfolio optimization. Defaults to 'efficient_risk'.
     :param target_volatility: (float) Optional, the desired maximum volatility of the resulting portfolio. Required if
                                       objective function is 'efficient_risk', otherwise, parameter is ignored. Defaults
                                       to 0.01.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
+    :param min_weight: (float) Optional, minimum weight to apply. Weights below this level are reallocated to weights which are
+                               above this level.
     :return: (float) Portfolio volatility of the maximum risk portfolio.
     """
     max_volatility = optimize_portfolio(
         exp_returns, cov_matrix,
-        risk_model, return_model,
         obj_function,
         target_volatility,
-        restricted=restricted, gamma=gamma
+        restricted=restricted, banned=banned, allow_cat2=allow_cat2, gamma=gamma, min_weight=min_weight
     )
-    return max_volatility[1].loc[risk_model].squeeze()
+    return max_volatility[1].loc['Volatility'].squeeze()
 
 
 def compute_efficient_frontier(
-        exp_returns, cov_matrix, risk_model, return_model, restricted=False, banned=False, gamma=0.0, add_custom_constraints=False):
+        exp_returns, cov_matrix,
+        restricted=False, banned=False, allow_cat2=False, gamma=0.0, add_custom_constraints=False, min_weight=0.0):
     """
     Computes 20 efficient frontier portfolios.
 
@@ -536,26 +500,28 @@ def compute_efficient_frontier(
     :param banned: (bool) Optional, filters out tickers on the "banned" tab in ('../data/portopt_inputs.xlsx'). Default is False.
     :param gamma: (float) Optional, L2 regularisation parameter, defaults to 0. Increase if you want more non-negligible weights.
     :param add_custom_constraints: (bool) Optional, adds custom constraints to the optimization problem.
+    :param min_weight: (float) Optional, minimum weight to apply. Weights below this level are reallocated to weights which are
+                               above this level.
     :return: (tuple) Tuple of pd.DataFrames representing the optimized portfolio weightings and ex-ante risk, return,
                      and Sharpe ratio.
     """
     min_risk_ = min_risk(
-        exp_returns, cov_matrix, risk_model, return_model,
-        restricted=restricted, gamma=gamma)
+        exp_returns, cov_matrix,
+        restricted=restricted, banned=banned, allow_cat2=allow_cat2, gamma=gamma, min_weight=min_weight)
     max_risk_ = max_risk(
-        exp_returns, cov_matrix, risk_model, return_model,
-        restricted=restricted, gamma=gamma)
+        exp_returns, cov_matrix,
+        restricted=restricted, banned=banned, allow_cat2=allow_cat2, gamma=gamma, min_weight=min_weight)
     cash_weightings = pd.DataFrame()
     results = pd.DataFrame()
     counter = 1
     for i in tqdm(np.linspace(min_risk_ + .001, max_risk_, 20).round(4)):
         optimized_portfolio, optimized_performance = optimize_portfolio(
             exp_returns, cov_matrix,
-            risk_model, return_model,
             obj_function='efficient_risk',
             target_volatility=i,
-            restricted=restricted, banned=banned, gamma=gamma,
-            add_custom_constraints=add_custom_constraints
+            restricted=restricted, banned=banned, allow_cat2=allow_cat2, gamma=gamma,
+            add_custom_constraints=add_custom_constraints,
+            min_weight=min_weight
         )
         cash_weighting = optimized_portfolio[int(1)]
         cash_weighting.name = counter
@@ -598,7 +564,7 @@ def focus(optimized_portfolios, group):
                         'ASSET_CLASS', 'SECURITY_TYPE', 'DURATION', 'CREDIT'
     :return: (pd.DataFrame) Portfolio weightings weighted by the group.
     """
-    optimized_portfolios = optimized_portfolios[(optimized_portfolios.T != 0).any()]
+    optimized_portfolios = optimized_portfolios[(optimized_portfolios.T!=0).any()]
     focus = optimized_portfolios.groupby([group][0]).sum()
     strings = focus.index
     strings = strings.to_list()
@@ -638,7 +604,7 @@ def risk_weightings(optimized_portfolios, cov_matrix):
     :param cov_matrix: (pd.DataFrame) Covariance of returns for each asset.
     :return: (pd.DataFrame) Risk-weightings for efficient frontier portfolios.
     """
-    optimized_portfolios = optimized_portfolios[(optimized_portfolios.T != 0).any()]
+    optimized_portfolios = optimized_portfolios[(optimized_portfolios.T!=0).any()]
     cash_weightings = optimized_portfolios.iloc[:, 10:]
     risk_weightings = pd.DataFrame(index=cash_weightings.index)
     classifications = classification[classification.index.isin(risk_weightings.index)]
@@ -770,7 +736,7 @@ def eff_frontier_plot(cov_matrix, exp_returns, results, figsize=(12, 6), save=Fa
 def monte_carlo_frontier(
         cov_matrix, exp_returns,
         figsize=(11, 5),
-        save=False, show=True, restricted=False, banned=False, gamma=0.0, add_custom_constraints=False):
+        save=False, show=True, restricted=False, banned=False, allow_cat2=False, gamma=0.0, add_custom_constraints=False):
     """
     Plots the efficient frontier and individual assets.
 
@@ -797,7 +763,7 @@ def monte_carlo_frontier(
         sector_lower, sector_upper, sector_mapper, value, growth, blend, equity_etp, equity_stock,
         broadmkt_etp, largecap_etp, midcap_etp, smallcap_etp, largecap_stock, midcap_stock, smallcap_stock,
         usa_global, developed, emerging
-    ) = constraints(cov_matrix, restricted, banned)
+    ) = constraints(cov_matrix, restricted, banned, allow_cat2)
     fig, ax = plt.subplots(figsize=figsize)
     ef = efficient_frontier.EfficientFrontier(exp_returns, cov_matrix, bounds)
     ef.add_objective(objective_functions.L2_reg, gamma=gamma)
@@ -811,7 +777,7 @@ def monte_carlo_frontier(
     ef.add_sector_constraints(holding_mapper, holding_lower, holding_upper)
     ef.add_sector_constraints(sector_mapper, sector_lower, sector_upper)
     if add_custom_constraints==True:
-        ef.add_constraint(lambda w: w @ growth == w @ value)
+        ef.add_constraint(lambda w: w @ growth <= w @ value)
         ef.add_constraint(lambda w: w @ largecap_etp >= 2 * w @ midcap_etp)
         ef.add_constraint(lambda w: w @ midcap_etp >= 2 * w @ smallcap_etp)
         ef.add_constraint(lambda w: w @ largecap_stock >= 2 * w @ midcap_stock)
@@ -900,3 +866,30 @@ def days(start_date, end_date):
     b = datetime.strptime(end_date, date_format)
     delta = b - a
     return delta.days
+
+
+def benchmarks(prices, method='buy_and_hold_equal_weight', weights=None, resample_by=None, verbose=False):
+    if method=='buy_and_hold_equal_weight':
+        s = pd.Series(np.repeat(1 / len(prices.columns), len(prices.columns)), index=prices.columns)
+        s.name = method
+        return s
+    elif method=='beststock':
+        beststock = BestStock()
+        beststock.allocate(prices, weights, resample_by, verbose)
+        s = pd.Series(beststock.weights, index=prices.columns)
+        s.name = method
+        return s
+    elif method=='CRP':
+        crp = CRP()
+        crp.allocate(prices, weights, resample_by, verbose)
+        s = pd.Series(crp.weights, index=prices.columns)
+        s.name = method
+        return s
+    elif method=='BCRP':
+        bcrp = BestStock()
+        bcrp.allocate(prices, weights, resample_by, verbose)
+        s = pd.Series(bcrp.weights, index=prices.columns)
+        s.name = method
+        return s
+    else:
+        raise ValueError('Please input a valid method (e.g. equal_weight, beststock, CRP, BCRP).')
